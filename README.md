@@ -1,11 +1,11 @@
-# Specification
+# Roman II
 
-Roman II (RII) is a simple to use programming language supporting no more than dictionaries,
+Roman II is a simple to use programming language supporting no more than dictionaries,
 lists, basic control flow, looping, and the conventional built in CPU data-types.
 
 ## Entry
 
-RII requires the conventional entry point:
+Roman II requires the conventional entry point:
 
 ```
 main()
@@ -15,7 +15,7 @@ main()
 
 ## Basic Types
 
-RII supports the conventional CPU types:
+Roman II supports the conventional CPU types:
 
 ```
 main()
@@ -53,19 +53,16 @@ main()
 }
 ```
 
-Variables without a specified type, if a string, default as a list of u8 characters.
-
-Variables without a specified type, if a number, default to type `f64` (see variable `l`).
-
-Variables without a specified type, if a character, default to type `u8` (see variable `m`).
-
-Variables - when hexidecimal - and without a specified type, obtain the smallest amount of available
-unsigned memory. Variable `o` types as type `u8`, variable `p` types as type `u16`, variable `q`
-as `u32`, and variable `r` as type `u64`.
+* Variables without a specified type, if a string, default as a list of u8 characters.
+* Variables without a specified type, if a number, default to type `f64` (see variable `l`).
+* Variables without a specified type, if a character, default to type `u8` (see variable `m`).
+* Variables - when hexidecimal - and without a specified type, obtain the smallest amount of available
+unsigned memory. Variable `o` types as `u8`, variable `p` as `u16`, variable `q`
+as `u32`, and variable `r` as `u64`.
 
 ## Data structures
 
-RII supports lists and dictionaries.
+Roman II supports lists and dictionaries.
 
 ```
 main()
@@ -89,14 +86,14 @@ main()
     g = [ (u8) 65, (u8) 66, (u8) 67, (u8) 68 ];
 }
 ```
-Lists are not contiguous in memory, and thus support the mixing of types (see variable `d`).
+Lists are not contiguous, and thus support the mixing of types (see variable `d`).
 Strings are lists of characters (see variables `e`, `f`, or `g`, are the same).
 Dictionary keys can only be direct strings.
 
 ## Roman Script Object Notation (RSON)
 
-RII introduces RSON, which merely extends the JavaScript Object Notation (JSON) with
-the aforementioned basic RII types.
+Roman II introduces RSON, which merely extends the JavaScript Object Notation (JSON) with
+the aforementioned basic Roman II types.
 
 ```
 main()
@@ -112,11 +109,12 @@ main()
 }
 ```
 
-RSON objects are backwards compatible with JSON objects. Numbers will default to type `f64`.
+RSON objects are backwards compatible with JSON objects. JSON numbers will default to type `f64`
+when imported into Roman II.
 
 ## Functions
 
-RII functions pass values by reference. Functions are not terms and do not return values.
+Roman II functions pass values by reference. Functions are not terms and do not return values.
 
 ```
 add(a, b)
@@ -140,7 +138,7 @@ main()
 
 ## Memory management
 
-RII manages memory similar to that of C++'s RAII system. Resources are allocated and freed by brace.
+Roman II manages memory similar to that of C++'s RAII system. Resources are allocated and freed by brace.
 
 ```
 main()
@@ -156,7 +154,7 @@ main()
 }
 ```
 
-RII assignment will free a previously declared value before assigning:
+Roman II assignment will free a previously declared value before assigning:
 
 ```
 main()
@@ -167,7 +165,7 @@ main()
 }
 ```
 
-RII assignment works similarly via function references:
+Roman II assignment works similarly via function references:
 
 ```
 modify(a)
@@ -183,7 +181,7 @@ main()
 }
 ```
 
-RII assignment can also be done by value copy, both immediately or by
+Roman II assignment can also be done by value copy, both immediately or by
 reference through a function:
 
 ```
@@ -197,20 +195,103 @@ modify(a, b)
 main()
 {
     a = {};
-    b = a;
+    b = a; # A copy of a is create dand assigned to b.
     c = {};
     d = {};
     modify(c, b);
 }
 ```
 
-References are function arguments, and function arguments are references.
-References may not be defined anywhere elsewhere - RII creates copies otherwise.
-References may be protected with `const` as a matter of safety.
+* References are function arguments, and function arguments are references.
+* References may not be defined anywhere elsewhere - Roman II creates copies otherwise.
+* References may be protected with `const` for programmer safety:
 
 ```
 modify(a, const b)
 {
     a = b;
+}
+```
+
+A Private Reference occurs when a function argument is a direct value.
+
+```
+main()
+{
+    a = {};
+    modify(a, { "value" : 1 });
+}
+```
+
+In such, the lifetime of the private reference is offloaded to the lifetime of the calling function.
+
+# Control Flow
+
+Roman II control flow is limited to `if` and `else` statements.
+
+```
+main()
+{
+    a = 1;
+    b = 2;
+    if(a + b > 2)
+    {
+        print("here is a: ");
+        print(a);
+        print('\n');
+    }
+    else if(a + b == 3)
+    {
+        print("here is b: ");
+        print(b);
+        print('\n');
+    }
+    else
+    {
+        print("Here is neither\n");
+    }
+}
+```
+
+# Looping
+
+Roman II loops are limited to `while` and `for` loops.
+
+
+The conventional `while` loop aids in standard expression looping:
+```
+main()
+{
+    a = (i32) 42;
+    while(a)
+    {
+        print(a);
+        print('\n');
+        a -= 1;
+    }
+}
+```
+
+The conventional `for` loop aids in traversing either lists or dictionaries:
+
+```
+main()
+{
+    sum = 0;
+    a = [ 1, 2, 3 ];
+    for(x : a)
+    {
+        sum += x;
+    }
+    sum = 0;
+    b = {
+        'a' : 1,
+        'b' : 2,
+        'c' : 3,
+    };
+    for(x, y : b)
+    {
+        sum += y;
+    }
 }
 ```
