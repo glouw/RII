@@ -272,25 +272,30 @@ Element(que_char* q, set_Memb* idents)
         return Ident(q, idents); // true, false, null, or any other identifier created by the programmer.
 }
 
+void
+Members(que_char* q, set_Memb* idents, set_Memb* m)
+{
+    while(true)
+    {
+        str s = String(q);
+        Match(q, ':');
+        set_Memb_insert(m, (Memb) { s, Element(q, idents) });
+        if(Next(q) == ',')
+            Match(q, ',');
+        else
+            break;
+    }
+}
+
 set_Memb
 Object(que_char* q, set_Memb* idents)
 {
-    set_Memb o = set_Memb_init(Memb_Compare);
+    set_Memb m = set_Memb_init(Memb_Compare);
     Match(q, '{');
     if(Next(q) != '}')
-        while(true)
-        {
-            str s = String(q);
-            Match(q, ':');
-            Elem e = Element(q, idents);
-            set_Memb_insert(&o, (Memb) { s, e });
-            if(Next(q) == ',')
-                Match(q, ',');
-            else
-                break;
-        }
+        Members(q, idents, &m);
     Match(q, '}');
-    return o;
+    return m;
 }
 
 void
