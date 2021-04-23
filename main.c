@@ -15,6 +15,12 @@ typedef enum { OBJ, ARR, STR, NUM, BLN, NUL } Type;
 
 typedef struct Val* Elem;
 
+bool
+Equal(str* a, const char* b)
+{
+    return str_compare(a, b) == 0;
+}
+
 void Elem_free(Elem*);
 Elem Elem_copy(Elem*);
 #define T Elem
@@ -65,9 +71,15 @@ Elem_free(Elem* e)
     Poly poly = (*e)->poly;
     switch(type)
     {
-    case OBJ: set_Memb_free(&poly.obj); break;
-    case ARR: vec_Elem_free(&poly.arr); break;
-    case STR: str_free(&poly.str); break;
+    case OBJ:
+        set_Memb_free(&poly.obj);
+        break;
+    case ARR:
+        vec_Elem_free(&poly.arr);
+        break;
+    case STR:
+        str_free(&poly.str);
+        break;
     default:
         break;
     }
@@ -83,14 +95,93 @@ Elem_copy(Elem* e)
     copy->type = type;
     switch(type)
     {
-    case OBJ: copy->poly.obj = set_Memb_copy(&poly.obj); break;
-    case ARR: copy->poly.arr = vec_Elem_copy(&poly.arr); break;
-    case STR: copy->poly.str = str_copy(&poly.str); break;
+    case OBJ:
+        copy->poly.obj = set_Memb_copy(&poly.obj);
+        break;
+    case ARR:
+        copy->poly.arr = vec_Elem_copy(&poly.arr);
+        break;
+    case STR:
+        copy->poly.str = str_copy(&poly.str);
+        break;
     default:
         copy->poly = poly;
         break;
     }
     return copy;
+}
+
+void
+Tabs(int tabs)
+{
+    int width = 4;
+    while(tabs--)
+        for(int i = 0; i < width; i++)
+            putchar(' ');
+}
+
+void
+Elem_write(Elem* e, int tabs)
+{
+    int indent = tabs + 1;
+    Type type = (*e)->type;
+    Poly poly = (*e)->poly;
+    size_t index = 0;
+    switch(type)
+    {
+    case OBJ:
+        putchar('{');
+        putchar('\n');
+        foreach(set_Memb, &poly.obj, it)
+        {
+            Tabs(indent);
+            printf("\"%s\" : ", it.ref->str.value);
+            Elem_write(&it.ref->elem, indent);
+            index += 1;
+            if(index < poly.obj.size)
+                putchar(',');
+            putchar('\n');
+        }
+        Tabs(tabs);
+        putchar('}');
+        break;
+    case ARR:
+        putchar('[');
+        putchar('\n');
+        foreach(vec_Elem, &poly.arr, it)
+        {
+            Tabs(indent);
+            Elem_write(it.ref, indent);
+            index += 1;
+            if(index < poly.arr.size)
+                putchar(',');
+            putchar('\n');
+        }
+        Tabs(tabs);
+        putchar(']');
+        break;
+    case STR:
+        printf("%s", poly.str.value);
+        break;
+    case BLN:
+        printf("%s", poly.bln ? "true" : "false");
+        break;
+    case NUL:
+        printf("null");
+        break;
+    case NUM:
+        printf("%f", poly.num);
+        break;
+    default:
+        break;
+    }
+}
+
+void
+Elem_print(Elem* e)
+{
+    Elem_write(e, 0);
+    putchar('\n');
 }
 
 void
@@ -138,7 +229,7 @@ IsDigit(char c)
 }
 
 bool
-IsNumber(char c)
+IsNum(char c)
 {
     return IsDigit(c) || c == '.';
 }
@@ -234,7 +325,7 @@ Array(que_char* q, set_Memb* idents)
 double
 Number(que_char* q)
 {
-    str s = Read(q, IsNumber);
+    str s = Read(q, IsNum);
     double d = strtod(s.value, NULL);
     str_free(&s);
     return d;
@@ -257,19 +348,10 @@ Elem
 Element(que_char* q, set_Memb* idents)
 {
     char n = Next(q);
-    if(n == '"')
-        return Elem_Init(STR, (Poly) {.str = String(q)});
-    else
-    if(n == '{')
-        return Elem_Init(OBJ, (Poly) {.obj = Object(q, idents)});
-    else
-    if(n == '[')
-        return Elem_Init(ARR, (Poly) {.arr = Array(q, idents)});
-    else
-    if(IsNumber(n))
-        return Elem_Init(NUM, (Poly) {.num = Number(q)});
-    else
-        return Ident(q, idents); // true, false, null, or any other identifier created by the programmer.
+    return (n == '"') ? Elem_Init(STR, (Poly) {.str = String(q)})
+         : (n == '{') ? Elem_Init(OBJ, (Poly) {.obj = Object(q, idents)})
+         : (n == '[') ? Elem_Init(ARR, (Poly) {.arr = Array(q, idents)})
+         : (IsNum(n)) ? Elem_Init(NUM, (Poly) {.num = Number(q)}) : Ident(q, idents);
 }
 
 void
@@ -299,16 +381,12 @@ Object(que_char* q, set_Memb* idents)
 }
 
 void
-Parse(set_Memb* idents, const char* code)
+Let(que_char* q, set_Memb* idents)
 {
-    que_char q = Queue(code);
-    while(que_char_empty(&q) == false)
-    {
-        Elem e = Element(&q, idents);
-        Elem_free(&e);
-        Spin(&q);
-    }
-    que_char_free(&q);
+    str s = Read(q, IsIdent);
+    Match(q, '=');
+    set_Memb_insert(idents, (Memb) { s, Element(q, idents) });
+    Match(q, ';');
 }
 
 set_Memb
@@ -316,23 +394,41 @@ Setup(void)
 {
     static Poly zero;
     set_Memb idents = set_Memb_init(Memb_Compare);
-    Memb membs[] = {
+    Memb members[] = {
         { str_init("true"),  Elem_Init(BLN, (Poly) {.bln = true  }) },
         { str_init("false"), Elem_Init(BLN, (Poly) {.bln = false }) },
         { str_init("null"),  Elem_Init(NUL, zero) },
     };
-    for(size_t i = 0; i < len(membs); i++)
-        set_Memb_insert(&idents, membs[i]);
+    for(size_t i = 0; i < len(members); i++)
+        set_Memb_insert(&idents, members[i]);
     return idents;
+}
+
+void
+Execute(const char* code)
+{
+    set_Memb idents = Setup();
+    que_char q = Queue(code);
+    while(que_char_empty(&q) == false)
+    {
+        str action = Read(&q, IsIdent);
+        if(Equal(&action, "let"))
+            Let(&q, &idents);
+        str_free(&action);
+        Spin(&q);
+    }
+    foreach(set_Memb, &idents, it)
+        Elem_print(&it.ref->elem);
+    que_char_free(&q);
+    set_Memb_free(&idents);
 }
 
 int
 main(void)
 {
-    set_Memb idents = Setup();
-    Parse(
-        &idents,
-        "{ \"list\": [{}, {}, {}, 2.3], \"none\": [false, true, null] }"
+    Execute(
+        "let a = [1,2,3,4, [1,2,3,4], {\"a\": 1, \"b\": 2, \"c\": [1,2,3,4]}];\n"
+        "let b = {\"copied\": a};\n"
+        "let c = 3;\n"
     );
-    set_Memb_free(&idents);
 }
