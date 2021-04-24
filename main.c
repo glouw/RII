@@ -11,7 +11,7 @@ int line = 0;
 
 #define quit(...) printf("error: line %d: ", line), printf(__VA_ARGS__), exit(1)
 
-// ORDER DICTATES TYPE CONVERSION
+// ORDER DICTATES TYPE CONVERSION.
 #define TYPES \
     X(I8)  \
     X(U8)  \
@@ -61,6 +61,18 @@ void Memb_free(Memb*);
 Memb Memb_copy(Memb*);
 #define T Memb
 #include <set.h>
+
+Elem
+Element(que_char*, set_Memb*);
+
+Elem
+Expression(que_char*, set_Memb*);
+
+Elem
+Term(que_char*, set_Memb*);
+
+set_Memb
+Object(que_char*, set_Memb*);
 
 typedef union
 {
@@ -179,19 +191,19 @@ Elem_write(Elem e, int tabs)
         Tabs(tabs);
         putchar(']');
         break;
-    case STR: printf("%s", e->poly.str.value); break;
-    case BLN: printf("%s", e->poly.bln ? "true" : "false"); break;
-    case NUL: printf("null"); break;
-    case F64: printf("%lf", e->poly.f64); break;
-    case F32: printf("%f",  e->poly.f32); break;
-    case I64: printf("%ld", e->poly.i64); break;
-    case I32: printf("%d",  e->poly.i32); break;
-    case I16: printf("%d",  e->poly.i16); break;
-    case  I8: printf("%d",  e->poly.i8);  break;
-    case U64: printf("%lu", e->poly.u64); break;
-    case U32: printf("%u",  e->poly.u32); break;
-    case U16: printf("%u",  e->poly.u16); break;
-    case  U8: printf("%u",  e->poly.u8);  break;
+    case STR: printf("<str> %s", e->poly.str.value); break;
+    case BLN: printf("<bln> %s", e->poly.bln ? "true" : "false"); break;
+    case NUL: printf("<nul> null"); break;
+    case F64: printf("<f64> %lf", e->poly.f64); break;
+    case F32: printf("<f32> %f",  e->poly.f32); break;
+    case I64: printf("<i64> %ld", e->poly.i64); break;
+    case I32: printf("<i32> %d",  e->poly.i32); break;
+    case I16: printf("<i16> %d",  e->poly.i16); break;
+    case  I8: printf("<i8 > %d",  e->poly.i8);  break;
+    case U64: printf("<u64> %lu", e->poly.u64); break;
+    case U32: printf("<u32> %u",  e->poly.u32); break;
+    case U16: printf("<u16> %u",  e->poly.u16); break;
+    case  U8: printf("<u8 > %u",  e->poly.u8);  break;
     }
 }
 
@@ -326,8 +338,6 @@ String(que_char* q)
     return s;
 }
 
-Elem Element(que_char*, set_Memb*);
-
 vec_Elem
 Array(que_char* q, set_Memb* idents)
 {
@@ -336,7 +346,7 @@ Array(que_char* q, set_Memb* idents)
     if(Next(q) != ']')
         while(true)
         {
-            vec_Elem_push_back(&es, Element(q, idents));
+            vec_Elem_push_back(&es, Expression(q, idents));
             if(Next(q) == ',')
                 Match(q, ',');
             else
@@ -346,31 +356,33 @@ Array(que_char* q, set_Memb* idents)
     return es;
 }
 
-Elem
-Number(que_char* q)
+Type
+CastType(que_char* q)
 {
-    char n = Next(q);
-    Type type = F64;
-    if(n == '<')
-    {
-        Match(q, '<');
-        str t = Read(q, IsIdent);
-        if(Equal(&t, "u8"))  type =  U8;
-        if(Equal(&t, "u16")) type = U16;
-        if(Equal(&t, "u32")) type = U32;
-        if(Equal(&t, "u64")) type = U64;
-        if(Equal(&t, "i8"))  type =  I8;
-        if(Equal(&t, "i16")) type = I16;
-        if(Equal(&t, "i32")) type = I32;
-        if(Equal(&t, "i64")) type = I64;
-        if(Equal(&t, "f32")) type = F32;
-        if(Equal(&t, "f64")) type = F64;
-        Match(q, '>');
-        str_free(&t);
-    }
+    Type type = { 0 };
+    Match(q, '<');
+    str t = Read(q, IsIdent);
+    if(Equal(&t, "u8"))  type =  U8; else
+    if(Equal(&t, "u16")) type = U16; else
+    if(Equal(&t, "u32")) type = U32; else
+    if(Equal(&t, "u64")) type = U64; else
+    if(Equal(&t, "i8"))  type =  I8; else
+    if(Equal(&t, "i16")) type = I16; else
+    if(Equal(&t, "i32")) type = I32; else
+    if(Equal(&t, "i64")) type = I64; else
+    if(Equal(&t, "f32")) type = F32; else
+    if(Equal(&t, "f64")) type = F64; else quit("type '%s' not supported\n", t.value);
+    Match(q, '>');
+    str_free(&t);
+    return type;
+}
+
+Poly
+Poly_Basic(que_char* q, Type t)
+{
+    Poly p = { 0 };
     str s = Read(q, IsNum);
-    Poly p;
-    switch(type)
+    switch(t)
     {
     default:
     case F64: p.f64 = strtod   (s.value, NULL); break;
@@ -385,7 +397,15 @@ Number(que_char* q)
     case I64: p.i64 = strtoll  (s.value, NULL, 10); break;
     }
     str_free(&s);
-    return Elem_Init(type, p);
+    return p;
+}
+
+Elem
+Value(que_char* q)
+{
+    Type t = (Next(q) == '<') ? CastType(q) : F64;
+    Poly p = Poly_Basic(q, t);
+    return Elem_Init(t, p);
 }
 
 Elem
@@ -399,8 +419,6 @@ Ident(que_char* q, set_Memb* idents)
     return Elem_copy(&node->key.elem);
 }
 
-set_Memb Object(que_char*, set_Memb* idents);
-
 Elem
 Element(que_char* q, set_Memb* idents)
 {
@@ -409,7 +427,7 @@ Element(que_char* q, set_Memb* idents)
          : (n == '{') ? Elem_Init(OBJ, (Poly) {.obj = Object(q, idents)})
          : (n == '[') ? Elem_Init(ARR, (Poly) {.arr = Array(q, idents)})
          : IsValidIdent(n) ? Ident(q, idents)
-         : Number(q);
+         : Value(q);
 }
 
 void
@@ -419,7 +437,7 @@ Members(que_char* q, set_Memb* idents, set_Memb* m)
     {
         str s = String(q);
         Match(q, ':');
-        set_Memb_insert(m, (Memb) { s, Element(q, idents) });
+        set_Memb_insert(m, (Memb) { s, Expression(q, idents) });
         if(Next(q) == ',')
             Match(q, ',');
         else
@@ -438,11 +456,6 @@ Object(que_char* q, set_Memb* idents)
     return m;
 }
 
-
-Elem Expression(que_char*, set_Memb*);
-
-Elem Term(que_char*, set_Memb*);
-
 Elem
 Parn(que_char* q, set_Memb* idents)
 {
@@ -455,9 +468,7 @@ Parn(que_char* q, set_Memb* idents)
 Elem
 Factor(que_char* q, set_Memb* idents)
 {
-    return (Next(q) == '(')
-        ? Parn(q, idents)
-        : Term(q, idents);
+    return (Next(q) == '(') ? Parn(q, idents) : Term(q, idents);
 }
 
 void
@@ -486,125 +497,30 @@ set_Memb_zip(set_Memb* a, set_Memb* b, void Op(Elem, Elem))
     }
 }
 
-void
-Mul(Elem a, Elem b)
-{
-    switch(a->type)
-    {
-    case  U8: a->poly.u8  *= b->poly.u8;  break; 
-    case U16: a->poly.u16 *= b->poly.u16; break; 
-    case U32: a->poly.u32 *= b->poly.u32; break; 
-    case U64: a->poly.u64 *= b->poly.u64; break; 
-    case  I8: a->poly.i8  *= b->poly.i8;  break; 
-    case I16: a->poly.i16 *= b->poly.i16; break; 
-    case I32: a->poly.i32 *= b->poly.i32; break; 
-    case I64: a->poly.i64 *= b->poly.i64; break; 
-    case F32: a->poly.f32 *= b->poly.f32; break; 
-    case F64: a->poly.f64 *= b->poly.f64; break; 
-    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Mul); break; 
-    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Mul); break; 
-    case STR: quit("mul (*) not supported for strings\n"); break; 
-    case BLN: quit("mul (*) not supported for booleans\n"); break; 
-    case NUL: quit("mul (*) not supported for null types\n"); break; 
-    }
-}
-
-void
-Div(Elem a, Elem b)
-{
-    switch(a->type)
-    {
-    case  U8: a->poly.u8  /= b->poly.u8;  break; 
-    case U16: a->poly.u16 /= b->poly.u16; break; 
-    case U32: a->poly.u32 /= b->poly.u32; break; 
-    case U64: a->poly.u64 /= b->poly.u64; break; 
-    case  I8: a->poly.i8  /= b->poly.i8;  break; 
-    case I16: a->poly.i16 /= b->poly.i16; break; 
-    case I32: a->poly.i32 /= b->poly.i32; break; 
-    case I64: a->poly.i64 /= b->poly.i64; break; 
-    case F32: a->poly.f32 /= b->poly.f32; break; 
-    case F64: a->poly.f64 /= b->poly.f64; break; 
-    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Div); break; 
-    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Div); break; 
-    case STR: quit("div (/) not supported for strings\n"); break; 
-    case BLN: quit("div (/) not supported for booleans\n"); break; 
-    case NUL: quit("div (/) not supported for null types\n"); break; 
-    }
-}
-
-void
-Convert(Elem a, Type t)
-{
-#define TABLE(X) \
-    switch(t) { \
-    case  I8: a->poly.i8  = a->poly.X; break; \
-    case  U8: a->poly.u8  = a->poly.X; break; \
-    case I16: a->poly.i16 = a->poly.X; break; \
-    case U16: a->poly.u16 = a->poly.X; break; \
-    case I32: a->poly.i32 = a->poly.X; break; \
-    case U32: a->poly.u32 = a->poly.X; break; \
-    case I64: a->poly.i64 = a->poly.X; break; \
-    case U64: a->poly.u64 = a->poly.X; break; \
-    case F32: a->poly.f32 = a->poly.X; break; \
-    case F64: a->poly.f64 = a->poly.X; break; \
-    default: break; \
-    }
-    switch(a->type)
-    {
-    case  I8: TABLE(i8); break;
-    case  U8: TABLE(u8); break;
-    case I16: TABLE(i16); break;
-    case U16: TABLE(u16); break;
-    case I32: TABLE(i32); break;
-    case U32: TABLE(u32); break;
-    case I64: TABLE(i64); break;
-    case U64: TABLE(u64); break;
-    case F32: TABLE(f32); break;
-    case F64: TABLE(f64); break;
+#define TABLE_CAST(A, TYPE) \
+    case  I8: A->poly.i8  = A->poly.TYPE; break; \
+    case  U8: A->poly.u8  = A->poly.TYPE; break; \
+    case I16: A->poly.i16 = A->poly.TYPE; break; \
+    case U16: A->poly.u16 = A->poly.TYPE; break; \
+    case I32: A->poly.i32 = A->poly.TYPE; break; \
+    case U32: A->poly.u32 = A->poly.TYPE; break; \
+    case I64: A->poly.i64 = A->poly.TYPE; break; \
+    case U64: A->poly.u64 = A->poly.TYPE; break; \
+    case F32: A->poly.f32 = A->poly.TYPE; break; \
+    case F64: A->poly.f64 = A->poly.TYPE; break; \
     default: break;
-    }
-#undef TABLE
-}
 
-void
-Add(Elem a, Elem b)
-{
-    switch(a->type)
-    {
-    case  U8: case U16: case U32: case U64:
-    case  I8: case I16: case I32: case I64:
-    case F32: case F64:
-        break;
-    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Add); break; 
-    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Add); break; 
-    case STR: str_append(&a->poly.str, str_c_str(&b->poly.str)); break; 
-    case BLN: quit("add (+) not supported for booleans\n"); break; 
-    case NUL: quit("add (+) not supported for null types\n"); break; 
-    }
-}
-
-void
-Sub(Elem a, Elem b)
-{
-    switch(a->type)
-    {
-    case  U8: a->poly.u8  -= b->poly.u8;  break; 
-    case U16: a->poly.u16 -= b->poly.u16; break; 
-    case U32: a->poly.u32 -= b->poly.u32; break; 
-    case U64: a->poly.u64 -= b->poly.u64; break; 
-    case  I8: a->poly.i8  -= b->poly.i8;  break; 
-    case I16: a->poly.i16 -= b->poly.i16; break; 
-    case I32: a->poly.i32 -= b->poly.i32; break; 
-    case I64: a->poly.i64 -= b->poly.i64; break; 
-    case F32: a->poly.f32 -= b->poly.f32; break; 
-    case F64: a->poly.f64 -= b->poly.f64; break; 
-    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Sub); break; 
-    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Sub); break; 
-    case STR: quit("sub (-) not supported for strings\n"); break; 
-    case BLN: quit("sub (-) not supported for booleans\n"); break; 
-    case NUL: quit("sub (-) not supported for null types\n"); break; 
-    }
-}
+#define TABLE_OPER(A, B, OPER) \
+    case  U8: A->poly.u8  OPER B->poly.u8;  break; \
+    case U16: A->poly.u16 OPER B->poly.u16; break; \
+    case U32: A->poly.u32 OPER B->poly.u32; break; \
+    case U64: A->poly.u64 OPER B->poly.u64; break; \
+    case  I8: A->poly.i8  OPER B->poly.i8;  break; \
+    case I16: A->poly.i16 OPER B->poly.i16; break; \
+    case I32: A->poly.i32 OPER B->poly.i32; break; \
+    case I64: A->poly.i64 OPER B->poly.i64; break; \
+    case F32: A->poly.f32 OPER B->poly.f32; break; \
+    case F64: A->poly.f64 OPER B->poly.f64; break;
 
 bool
 IsBasic(Elem e)
@@ -615,14 +531,116 @@ IsBasic(Elem e)
 }
 
 void
+Cast(Elem e, Type t)
+{
+    if(IsBasic(e))
+    {
+        switch(e->type)
+        {
+        case  I8: switch(t) { TABLE_CAST(e,  i8) } break;
+        case  U8: switch(t) { TABLE_CAST(e,  u8) } break;
+        case I16: switch(t) { TABLE_CAST(e, i16) } break;
+        case U16: switch(t) { TABLE_CAST(e, u16) } break;
+        case I32: switch(t) { TABLE_CAST(e, i32) } break;
+        case U32: switch(t) { TABLE_CAST(e, u32) } break;
+        case I64: switch(t) { TABLE_CAST(e, i64) } break;
+        case U64: switch(t) { TABLE_CAST(e, u64) } break;
+        case F32: switch(t) { TABLE_CAST(e, f32) } break;
+        case F64: switch(t) { TABLE_CAST(e, f64) } break;
+        default: break;
+        }
+        e->type = t;
+    }
+}
+
+void
 Check(Elem a, Elem b)
 {
-    if(IsBasic(a) && IsBasic(b)) // Two basic types are compatible with math operations.
-        return;
-    if(a->type != b->type)
-        quit("type mismatch - types were '%s' and '%s'\n",
-            TypeStr[a->type],
-            TypeStr[b->type]);
+    if(!IsBasic(a) || !IsBasic(b))
+        if(a->type != b->type)
+            quit("type mismatch - types were '%s' and '%s'\n", TypeStr[a->type], TypeStr[b->type]);
+}
+
+void
+OperCast(Elem a, Elem b)
+{
+    if(b->type > a->type) Cast(a, b->type); else
+    if(a->type > b->type) Cast(b, a->type);
+}
+
+void
+OperPrep(Elem a, Elem b)
+{
+    Check(a, b);
+    OperCast(a, b);
+}
+
+void
+Mul(Elem a, Elem b)
+{
+    OperPrep(a, b);
+    switch(a->type)
+    {
+    TABLE_OPER(a, b, *=)
+    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Mul); break; 
+    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Mul); break; 
+    case STR:
+    case BLN:
+    case NUL:
+        quit("mul (*) not supported for '%s'\n", TypeStr[a->type]); 
+        break; 
+    }
+}
+
+void
+Div(Elem a, Elem b)
+{
+    OperPrep(a, b);
+    switch(a->type)
+    {
+    TABLE_OPER(a, b, /=)
+    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Div); break; 
+    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Div); break; 
+    case STR:
+    case BLN: 
+    case NUL:
+        quit("div (/) not supported for '%s'\n", TypeStr[a->type]); 
+        break; 
+    }
+}
+
+void
+Add(Elem a, Elem b)
+{
+    OperPrep(a, b);
+    switch(a->type)
+    {
+    TABLE_OPER(a, b, +=)
+    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Add); break; 
+    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Add); break; 
+    case STR: str_append(&a->poly.str, str_c_str(&b->poly.str)); break; 
+    case BLN:
+    case NUL:
+        quit("add (+) not supported for '%s'\n", TypeStr[a->type]); 
+        break; 
+    }
+}
+
+void
+Sub(Elem a, Elem b)
+{
+    OperPrep(a, b);
+    switch(a->type)
+    {
+    TABLE_OPER(a, b, -=)
+    case ARR: vec_Elem_zip(&a->poly.arr, &b->poly.arr, Sub); break; 
+    case OBJ: set_Memb_zip(&a->poly.obj, &b->poly.obj, Sub); break; 
+    case STR:
+    case BLN:
+    case NUL:
+        quit("sub (-) not supported for '%s'\n", TypeStr[a->type]); 
+        break; 
+    }
 }
 
 Elem
@@ -636,7 +654,6 @@ Term(que_char* q, set_Memb* idents)
         {
             Match(q, '*');
             Elem b = Factor(q, idents);
-            Check(a, b);
             Mul(a, b);
             Elem_free(&b);
         }
@@ -645,7 +662,6 @@ Term(que_char* q, set_Memb* idents)
         {
             Match(q, '/');
             Elem b = Factor(q, idents);
-            Check(a, b);
             Div(a, b);
             Elem_free(&b);
         }
@@ -666,7 +682,6 @@ Expression(que_char* q, set_Memb* idents)
         {
             Match(q, '+');
             Elem b = Element(q, idents);
-            Check(a, b);
             Add(a, b);
             Elem_free(&b);
         }
@@ -675,7 +690,6 @@ Expression(que_char* q, set_Memb* idents)
         {
             Match(q, '-');
             Elem b = Element(q, idents);
-            Check(a, b);
             Sub(a, b);
             Elem_free(&b);
         }
@@ -723,6 +737,7 @@ Execute(const char* code)
         str_free(&action);
         Spin(&q);
     }
+    puts("PRINTING GLOBALS");
     foreach(set_Memb, &idents, it)
         Elem_print(it.ref->elem);
     que_char_free(&q);
@@ -733,6 +748,24 @@ int
 main(void)
 {
     Execute(
-        "let Z = <u8> 255 - 1.0;"
+        "let Z = { \"list\" :"
+                "[<f64> 1, <i32> 1, <i32> 2, <i32> 3]"
+              "+ [<i64> 2,  <u8> 1,  <u8> 2,  <u8> 3] };"
+        "let thing = true;"
+        "let array = ["
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128,"
+            "<u32> 128"
+        "];"
     );
 }
