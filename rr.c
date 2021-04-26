@@ -10,17 +10,6 @@
 #define T str
 #include <vec.h>
 
-int line = 1;
-
-#define quit(...) \
-    printf("error: line %d: ", line), printf(__VA_ARGS__), exit(1)
-
-#define TYPES X(I8) X(U8) \
-    X(I16) X(U16) X(I32) X(U32) \
-    X(I64) X(U64) X(F32) X(F64) \
-    X(OBJ) X(ARR) X(STR) X(BLN) \
-    X(BLK) X(REF) X(NUL) // ORDER DETERMINES CASTING CONVERSIONS.
-
 #define TABLE_CAST(A, TYPE) \
     case  I8: A->poly.i8  = A->poly.TYPE; break; \
     case  U8: A->poly.u8  = A->poly.TYPE; break; \
@@ -46,6 +35,18 @@ int line = 1;
     case F32: A->poly.f32 OPER B->poly.f32; break; \
     case F64: A->poly.f64 OPER B->poly.f64; break;
 
+
+int line = 1;
+
+#define quit(...) \
+    printf("error: line %d: ", line), printf(__VA_ARGS__), exit(1)
+
+#define TYPES X(I8) X(U8) \
+    X(I16) X(U16) X(I32) X(U32) \
+    X(I64) X(U64) X(F32) X(F64) \
+    X(OBJ) X(ARR) X(STR) X(BLN) \
+    X(BLK) X(REF) X(NUL) // ORDER DETERMINES CASTING CONVERSIONS.
+
 #define X(A) A,
 typedef enum { TYPES } Type;
 #undef X
@@ -65,6 +66,7 @@ typedef struct
 {
     str str;
     Elem elem;
+    bool accessible;
 }
 Memb;
 
@@ -92,7 +94,7 @@ typedef struct
 {
     str text;
     vec_str params;
-    set_Memb captured;
+    vec_str captured;
 }
 Blk;
 
@@ -135,7 +137,7 @@ Blk_Free(Blk* b)
 {
     str_free(&b->text);
     vec_str_free(&b->params);
-    set_Memb_free(&b->captured);
+    vec_str_free(&b->captured);
 }
 
 Blk
@@ -144,12 +146,12 @@ Blk_Copy(Blk* b)
     return (Blk) {
         str_copy(&b->text),
         vec_str_copy(&b->params),
-        set_Memb_copy(&b->captured),
+        vec_str_copy(&b->captured),
     };
 }
 
 Blk
-Blk_Init(str text, vec_str params, set_Memb captured)
+Blk_Init(str text, vec_str params, vec_str captured)
 {
     return (Blk) { text, params, captured };
 }
@@ -281,11 +283,10 @@ Memb_free(Memb* m)
     Elem_free(&m->elem);
 }
 
-
 Memb
 Memb_Init(str s, Elem e)
 {
-    return (Memb) { s, e };
+    return (Memb) { s, e, true };
 }
 
 Memb
@@ -478,13 +479,26 @@ Value(que_char* q)
 }
 
 set_Memb_node*
-Node(set_Memb* idents, str* s)
+Find(set_Memb* idents, str* s)
 {
     return set_Memb_find(idents, (Memb) { .str = *s });
 }
 
 set_Memb_node*
-Find(set_Memb* idents, str* s)
+Node(set_Memb* idents, str* s)
+{
+    set_Memb_node* node = Find(idents, s);
+    if(node)
+    {
+        if(node->key.accessible == false)
+            quit("identifier '%s' not defined (NOT ACCESSIBLE)\n", s->value);
+        return node;
+    }
+    return NULL;
+}
+
+set_Memb_node*
+Exists(set_Memb* idents, str* s)
 {
     set_Memb_node* node = Node(idents, s);
     if(node == NULL)
@@ -495,7 +509,7 @@ Find(set_Memb* idents, str* s)
 void
 Erase(set_Memb* idents, str* s)
 {
-    set_Memb_erase_node(idents, Node(idents, s));
+    set_Memb_erase_node(idents, Find(idents, s));
 }
 
 void
@@ -508,7 +522,7 @@ Dupe(set_Memb* idents, str* s)
 Elem
 GetByRef(set_Memb* idents, str* s)
 {
-    set_Memb_node* node = Find(idents, s);
+    set_Memb_node* node = Exists(idents, s);
     return node->key.elem;
 }
 
@@ -859,7 +873,9 @@ Lambda(que_char* q, set_Memb* idents)
     vec_str params = DeclParams(q);
     Match(q, '=');
     str b = ReadBlock(q);
-    set_Memb c = set_Memb_copy(idents);
+    vec_str c = vec_str_init();
+    foreach(set_Memb, idents, it)
+        vec_str_push_back(&c, str_copy(&it.ref->str));
     Blk blk = Blk_Init(b, params, c);
     return Elem_Init(BLK, (Poly) { .blk = blk });
 }
@@ -889,7 +905,7 @@ Args(que_char* q, set_Memb* idents, vec_str* params)
         {
             str real = Read(q, IsIdent);
             count += 1;
-            Find(idents, &real);
+            Exists(idents, &real);
             Elem e = Elem_Init(REF, (Poly) { .ref = real });
             str a = str_copy(it.ref);
             Memb m = Memb_Init(a, e);
@@ -919,6 +935,15 @@ Block(const char* code, set_Memb* idents, set_Memb* old)
     set_Memb_free(&diff);
 }
 
+str
+Alias(str* s, set_Memb* idents)
+{
+    Memb* m = &Find(idents, s)->key;
+    while(m->elem->type == REF)
+        m = &Find(idents, &m->elem->poly.ref)->key;
+    return str_copy(&m->str);
+}
+
 void
 Call(que_char* q, set_Memb* idents, str* s)
 {
@@ -927,10 +952,45 @@ Call(que_char* q, set_Memb* idents, str* s)
     if(e->type != BLK)
         quit("type '%s' cannot be called\n", TypeStr[e->type]);
     Args(q, idents, &e->poly.blk.params);
+    // MARK ACCESSIBLE:
+    vec_str acc = vec_str_init();
+    {
+        // 1. CAPTURED
+        foreach(vec_str, &e->poly.blk.captured, it)
+        {
+            str c = str_copy(it.ref);
+            vec_str_push_back(&acc, c);
+        }
+        // 2. PARAMS.
+        foreach(vec_str, &e->poly.blk.params, it)
+        {
+            str p = str_copy(it.ref);
+            vec_str_push_back(&acc, p);
+        }
+        // 3. DEREF OF PARAMS.
+        //foreach(vec_str, &e->poly.blk.params, it)
+        //{
+        //    str d = Alias(it.ref, idents);
+        //    vec_str_push_back(&acc, d);
+        //}
+    }
+    // SAVE A COPY.
+    set_Memb saved = set_Memb_copy(idents);
+    // DISABLE ACCESSIBLITY.
+    foreach(set_Memb, idents, it)
+        it.ref->accessible = false;
+    // GRANT ACCESS.
+    foreach(vec_str, &acc, it)
+        Find(idents, it.ref)->key.accessible = true;
     Block(e->poly.blk.text.value, idents, &old);
+    // RESTORE ACCESS.
+    foreach(set_Memb, idents, it)
+        it.ref->accessible = Find(&saved, &it.ref->str)->key.accessible;
+    // DISCARDS RETURN VALUE FOR NOW - MUST RETURN COMPUTED VALUE ONE DAY.
+    set_Memb_free(&saved);
     set_Memb_free(&old);
     Elem_free(&e);
-    // DISCARDS VALUE FOR NOW - MUST RETURN COMPUTED VALUE ONE DAY.
+    vec_str_free(&acc);
 }
 
 Elem
@@ -958,20 +1018,11 @@ Let(que_char* q, set_Memb* idents)
     set_Memb_insert(idents, Memb_Init(s, e));
 }
 
-str
-Alias(Memb* m, set_Memb* idents)
-{
-    while(m->elem->type == REF)
-        m = &Find(idents, &m->elem->poly.ref)->key;
-    return str_copy(&m->str);
-}
-
 void
 Set(que_char* q, set_Memb* idents, str* s)
 {
     Elem e = Assign(q, idents);
-    Memb* m = &Find(idents, s)->key;
-    str a = Alias(m, idents);
+    str a = Alias(s, idents);
     Erase(idents, &a);
     set_Memb_insert(idents, Memb_Init(a, e));
 }
@@ -1021,11 +1072,15 @@ int
 main(void)
 {
     Execute(
-        "let global = 1.0;"
-        "let main() = {"
-            "let b = 1.0;"
+        "let top = 2.0;"
+        "let set(A) = {"
+            "let a = 1;"
         "};"
-        "let a = 1.0;"
+        "let bot = 2.0;"
+        "let main() = {"
+            "let a = 1.0;"
+            "set(a);"
+        "};"
         "main();"
     );
 }
