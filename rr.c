@@ -243,7 +243,7 @@ Elem_write(Elem e, int tabs)
     case STR: printf("|str| %s", e->poly.str.value); break;
     case REF: printf("|ref| %s", e->poly.ref.value); break;
     case BLN: printf("|bln| %s", e->poly.bln ? "true" : "false"); break;
-    case NUL: printf("|nul| null"); break;
+    case NUL: printf("|null| null"); break;
     case F64: printf("|f64| %lf", e->poly.f64); break;
     case F32: printf("|f32| %f",  e->poly.f32); break;
     case I64: printf("|i64| %ld", e->poly.i64); break;
@@ -272,10 +272,19 @@ Memb_free(Memb* m)
     Elem_free(&m->elem);
 }
 
+
+Memb
+Memb_Init(str s, Elem e)
+{
+    return (Memb) { s, e };
+}
+
 Memb
 Memb_copy(Memb* m)
 {
-    return (Memb) { str_copy(&m->str), Elem_copy(&m->elem) };
+    str s = str_copy(&m->str);
+    Elem e = Elem_copy(&m->elem);
+    return Memb_Init(s, e);
 }
 
 int
@@ -477,7 +486,7 @@ Find(set_Memb* idents, str* s)
 void
 Erase(set_Memb* idents, str* s)
 {
-    set_Memb_erase(idents, (Memb) { .str = *s });
+    set_Memb_erase_node(idents, Node(idents, s));
 }
 
 void
@@ -528,7 +537,8 @@ Members(que_char* q, set_Memb* idents, set_Memb* m)
     {
         str s = String(q);
         Match(q, ':');
-        set_Memb_insert(m, (Memb) { s, Expression(q, idents) });
+        Elem e = Expression(q, idents);
+        set_Memb_insert(m, Memb_Init(s, e));
         if(Next(q) == ',')
             Match(q, ',');
         else
@@ -559,9 +569,7 @@ Parn(que_char* q, set_Memb* idents)
 bool
 IsBasic(Elem e)
 {
-    return e->type ==  I8 || e->type == I16 || e->type == I32 || e->type == I64
-        || e->type ==  U8 || e->type == U16 || e->type == U32 || e->type == U64
-        || e->type == F32 || e->type == F64;
+    return e->type >= I8 && e->type <= F64;
 }
 
 void
@@ -617,7 +625,7 @@ set_Memb_zip(set_Memb* a, set_Memb* b, void Op(Elem, Elem))
 {
     foreach(set_Memb, b, it)
     {
-        set_Memb_node* node = set_Memb_find(a, (Memb) { .str = it.ref->str });
+        set_Memb_node* node = Node(a, &it.ref->str);
         if(node)
             Op(node->key.elem, it.ref->elem);
     }
@@ -728,6 +736,7 @@ Deref(Elem* e, set_Memb* idents)
 {
     while((*e)->type == REF) // DEPENDS HOW MANY FUNCTIONS DEEP.
     {
+        puts("DEREF");
         Elem n = GetByVal(idents, &(*e)->poly.ref);
         Elem_free(e);
         *e = n;
@@ -846,33 +855,15 @@ Lambda(que_char* q)
     return Elem_Init(BLK, (Poly) { .blk = blk });
 }
 
-void
-Let(que_char* q, set_Memb* idents)
-{
-    Elem elem = { 0 };
-    str s = Read(q, IsIdent);
-    Dupe(idents, &s);
-    char n = Next(q);
-    if(n == '(')
-        elem = Lambda(q);
-    else
-    if(n == '=')
-    {
-        Match(q, '=');
-        elem = Expression(q, idents);
-    }
-    set_Memb_insert(idents, (Memb) { s, elem });
-}
-
 set_Memb
 Setup(void)
 {
     static Poly zero;
     set_Memb idents = set_Memb_init(Memb_Compare);
     Memb members[] = {
-        { str_init("true"),  Elem_Init(BLN, (Poly) {.bln = true  }) },
-        { str_init("false"), Elem_Init(BLN, (Poly) {.bln = false }) },
-        { str_init("null"),  Elem_Init(NUL, zero) },
+        Memb_Init(str_init("true"),  Elem_Init(BLN, (Poly) {.bln = true  })),
+        Memb_Init(str_init("false"), Elem_Init(BLN, (Poly) {.bln = false })),
+        Memb_Init(str_init("null"),  Elem_Init(NUL, zero)),
     };
     for(size_t i = 0; i < len(members); i++)
         set_Memb_insert(&idents, members[i]);
@@ -890,7 +881,9 @@ Args(que_char* q, set_Memb* idents, vec_str* params)
             str real = Read(q, IsIdent);
             count += 1;
             Find(idents, &real);
-            Memb m = { str_copy(it.ref), Elem_Init(REF, (Poly) { .ref = real }) };
+            Elem e = Elem_Init(REF, (Poly) { .ref = real });
+            str a = str_copy(it.ref);
+            Memb m = Memb_Init(a, e);
             set_Memb_insert(idents, m);
             if(Next(q) == ',')
                 Match(q, ',');
@@ -931,6 +924,49 @@ Call(que_char* q, set_Memb* idents, str* s)
     // DISCARDS VALUE FOR NOW - MUST RETURN COMPUTED VALUE ONE DAY.
 }
 
+Elem
+Assign(que_char* q, set_Memb* idents)
+{
+    Elem elem = { 0 };
+    char n = Next(q);
+    if(n == '(')
+        elem = Lambda(q);
+    else
+    if(n == '=')
+    {
+        Match(q, '=');
+        elem = Expression(q, idents);
+    }
+    return elem;
+}
+
+void
+Let(que_char* q, set_Memb* idents)
+{
+    str s = Read(q, IsIdent);
+    Dupe(idents, &s);
+    Elem e = Assign(q, idents);
+    set_Memb_insert(idents, Memb_Init(s, e));
+}
+
+str
+Alias(Memb* m, set_Memb* idents)
+{
+    while(m->elem->type == REF)
+        m = &Find(idents, &m->elem->poly.ref)->key;
+    return str_copy(&m->str);
+}
+
+void
+Set(que_char* q, set_Memb* idents, str* s)
+{
+    Elem e = Assign(q, idents);
+    Memb* m = &Find(idents, s)->key;
+    str a = Alias(m, idents);
+    Erase(idents, &a);
+    set_Memb_insert(idents, Memb_Init(a, e));
+}
+
 void
 Statement(que_char* q, set_Memb* idents)
 {
@@ -938,7 +974,10 @@ Statement(que_char* q, set_Memb* idents)
     if(Equal(&action, "let"))
         Let(q, idents);
     else
+    if(Next(q) == '(')
         Call(q, idents, &action);
+    else
+        Set(q, idents, &action);
     Match(q, ';');
     str_free(&action);
 }
@@ -973,24 +1012,13 @@ int
 main(void)
 {
     Execute(
-        "let a = {"
-            "\"list\" : ["
-                "|u32| 1, |f32| 2, |f64| 3, |i16| 4"
-            "]"
+        "let set(value) = {"
+            "a = [2,3,4];"
         "};"
-        "let f(A, B, C, D) = {"
-            "let aa = A + B + C + D + a;"
-            "let test(AA, BB, CC, DD) = {"
-                "let other = AA + BB + CC + DD + a + a;"
-                "let deeper(AAA, BBB, CCC, DDD) = {"
-                    "let final = AAA + BBB + CCC + DDD + a + a + a;"
-                "};"
-                "deeper(AA, BB, CC, DD);"
-            "};"
-            "test(A, B, C, D);"
+        "let main() = {"
+            "let a = [1,2,3];"
+            "set(a);"
         "};"
-        "f(a, a, a, a);"
-        "let b = a;"
-        "let aa = a;"
+        "main();"
     );
 }
