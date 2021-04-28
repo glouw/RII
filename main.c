@@ -228,8 +228,9 @@ IsNum(char c)
 }
 
 bool
-IsString(char c) // WHAT IS A STRING?
+IsString(char c)
 {
+    // WHAT IS A STRING?
     return IsLower(c)
         || IsUpper(c)
         || IsSpace(c)
@@ -317,38 +318,6 @@ Read(deq_char* q, bool clause(char))
 }
 
 str
-DefBlock(deq_char* q)
-{
-    int open = 0;
-    str b = str_init("");
-    do {
-        char n = *deq_char_front(q);
-        if(n == '{') open++;
-        if(n == '}') open--;
-        str_push_back(&b, n);
-        Pop(q);
-    }
-    while(open > 0);
-    return b;
-}
-
-vec_str
-Params(deq_char* q)
-{
-    vec_str p = vec_str_init();
-    Match(q, '(');
-    while(Next(q) != ')')
-    {
-        str s = Read(q, IsIdent);
-        vec_str_push_back(&p, s);
-        if(Next(q) == ',')
-            Match(q, ',');
-    }
-    Match(q, ')');
-    return p;
-}
-
-str
 Prefix(str* s, str* with)
 {
     str n = str_copy(with);
@@ -356,24 +325,6 @@ Prefix(str* s, str* with)
         str_append(&n, ".");
     str_append(&n, s->value);
     return n;
-}
-
-void
-Insert(str* s, Elem e, bool constant)
-{
-    str n = Prefix(s, &namespace);
-    Memb m = Memb_Init(n, e, constant);
-    set_Memb_insert(&db, m);
-}
-
-void
-Fun(deq_char* q)
-{
-    str f = Read(q, IsIdent);
-    vec_str p = Params(q);
-    vec_str_push_back(&p, f);
-    vec_str_push_back(&p, DefBlock(q));
-    Insert(&f, Elem_Init(FUN, (Poly) { .fun = p }), true);
 }
 
 set_Memb_node*
@@ -405,6 +356,61 @@ Exists(str* s)
     return node;
 }
 
+void
+Insert(str* s, Elem e, bool constant)
+{
+    str n = Prefix(s, &namespace);
+    Memb m = Memb_Init(n, e, constant);
+    set_Memb_insert(&db, m);
+}
+
+str
+DefBlock(deq_char* q)
+{
+    Spin(q);
+    int open = 0;
+    str b = str_init("");
+    do
+    {   // MUST READ SPACE.
+        char n = *deq_char_front(q);
+        if(n == '{') open++;
+        if(n == '}') open--;
+        str_push_back(&b, n);
+        Pop(q);
+    }
+    while(open > 0);
+    return b;
+}
+
+vec_str
+Params(deq_char* q, bool check)
+{
+    vec_str p = vec_str_init();
+    Match(q, '(');
+    while(Next(q) != ')')
+    {
+        str s = Read(q, IsIdent);
+        if(check)
+            if(Find(&s))
+                quit("`%s` already defined", s.value);
+        vec_str_push_back(&p, s);
+        if(Next(q) == ',')
+            Match(q, ',');
+    }
+    Match(q, ')');
+    return p;
+}
+
+void
+Fun(deq_char* q, str* s)
+{
+    vec_str p = Params(q, true);
+    vec_str_push_back(&p, *s);
+    str b = DefBlock(q);
+    vec_str_push_back(&p, b);
+    Insert(s, Elem_Init(FUN, (Poly) { .fun = p }), true);
+}
+
 Memb*
 Deref(Memb* m)
 {
@@ -429,7 +435,7 @@ Ident(deq_char* q)
     Elem e;
     if(Next(q) == '(')
     {
-        vec_str p = Params(q);
+        vec_str p = Params(q, false);
         e = Call(m, &p);
         vec_str_free(&p);
     }
@@ -664,6 +670,7 @@ Sub(Elem a, Elem b)
         a->poly.f64 -= b->poly.f64;
         break;
     case STR:
+        // HOW ABOUT STRCMP?
     case FUN:
     case NUL:
     case REF:
@@ -789,55 +796,54 @@ void
 Elem_write(Elem e, int tabs);
 
 void
-Obj_write(Elem e, int indent)
+Obj_write(Elem e, int tabs)
 {
     size_t index = 0;
     putchar('{');
     putchar('\n');
     foreach(set_Memb, &e->poly.obj, it)
     {
-        Tabs(indent);
+        Tabs(tabs);
         printf("\"%s\" : ", it.ref->str.value);
-        Elem_write(it.ref->elem, indent);
+        Elem_write(it.ref->elem, tabs);
         index += 1;
         if(index < e->poly.obj.size)
             putchar(',');
         putchar('\n');
     }
-    Tabs(indent - 1);
+    Tabs(tabs - 1);
     putchar('}');
 }
 
 void
-Arr_write(Elem e, int indent)
+Arr_write(Elem e, int tabs)
 {
     size_t index = 0;
     putchar('[');
     putchar('\n');
     foreach(vec_Elem, &e->poly.arr, it)
     {
-        Tabs(indent);
-        Elem_write(*it.ref, indent);
+        Tabs(tabs);
+        Elem_write(*it.ref, tabs);
         index += 1;
         if(index < e->poly.arr.size)
             putchar(',');
         putchar('\n');
     }
-    Tabs(indent - 1);
+    Tabs(tabs - 1);
     putchar(']');
 }
 
 void
 Elem_write(Elem e, int tabs)
 {
-    int indent = tabs + 1;
     switch(e->type)
     {
     case OBJ:
-        Obj_write(e, indent);
+        Obj_write(e, tabs + 1);
         break;
     case ARR:
-        Arr_write(e, indent);
+        Arr_write(e, tabs + 1);
         break;
     case STR:
         printf("|str| \"%s\"", e->poly.str.value);
@@ -889,34 +895,54 @@ Update(deq_char* q, str* n)
     m->elem = e;
 }
 
-void
+bool
+Mutable(deq_char* q, str* s)
+{
+    bool mut = Equal(s, "mut");
+    if(mut)
+    {
+        str_free(s);
+        *s = Read(q, IsIdent);
+    }
+    return mut;
+}
+
+Elem
 Block(deq_char* q)
 {
-    set_Memb old = set_Memb_copy(&db);
     Match(q, '{');
+    static Poly zero;
+    set_Memb old = set_Memb_copy(&db);
+    Elem ret = Elem_Init(NUL, zero);
     while(Next(q) != '}')
     {
         str s = Read(q, IsIdent);
-        bool mut = Equal(&s, "mut");
-        if(mut)
+        if(Equal(&s, "ret"))
         {
+            Elem_free(&ret);
+            ret = Expression(q);
+            Match(q, ';');
             str_free(&s);
-            s = Read(q, IsIdent);
+            break;
         }
-        char c = Next(q);
-        if(c == ':')
-            Define(q, &s, mut);
-        else
-        if(c == '=')
-            Update(q, &s);
         else
         {
-            Requeue(q, &s);
-            Elem e = Expression(q);
-            Elem_free(&e);
+            bool mut = Mutable(q, &s);
+            char c = Next(q);
+            if(c == ':')
+                Define(q, &s, mut);
+            else
+            if(c == '=')
+                Update(q, &s);
+            else
+            {
+                Requeue(q, &s);
+                Elem e = Expression(q);
+                Elem_free(&e);
+            }
+            Match(q, ';');
+            str_free(&s);
         }
-        Match(q, ';');
-        str_free(&s);
     }
     Match(q, '}');
     set_Memb diff = set_Memb_difference(&db, &old);
@@ -929,6 +955,7 @@ Block(deq_char* q)
         Erase(&it.ref->str);
     set_Memb_free(&old);
     set_Memb_free(&diff);
+    return ret;
 }
 
 Elem
@@ -940,7 +967,8 @@ Call(Memb* m, vec_str* args)
     int got = args->size;
     if(got != exp)
         quit("`%s()` got %d args but expected %d\n", m->str.value, got, exp);
-    deq_char q = Queue(Code(m->elem));
+    char* code = Code(m->elem);
+    deq_char q = Queue(code);
     str new = str_copy(&m->str);
     Memb* membs[got];
     int index = 0;
@@ -952,12 +980,11 @@ Call(Memb* m, vec_str* args)
         Elem e = Elem_Init(REF, (Poly) { .ref = membs[i] });
         Insert(&m->elem->poly.fun.value[i], e, true);
     }
-    Block(&q);
+    Elem ret = Block(&q);
     str_swap(&namespace, &new);
     deq_char_free(&q);
     str_free(&new);
-    static Poly zero;
-    return Elem_Init(NUL, zero);
+    return ret;
 }
 
 Elem
@@ -981,54 +1008,81 @@ Command(int argc, char* argv[])
     return e;
 }
 
-int
-main(int argc, char* argv[])
+void
+Program(const char* code)
 {
-    namespace = str_init("");
-    const char* code =
-        "foo(A)"
-        "{"
-        "}"
-
-        "inf()"
-        "{"
-            "inf();"
-        "}"
-
-        "bar(A)"
-        "{"
-            "foo(A);"
-        "}"
-
-        "g(A, a)"
-        "{"
-            "A(a);"
-        "}"
-
-        "# This is a comment\n"
-        "main()"
-        "{"
-            "mut b := 1;"
-        "}";
     deq_char q = Queue(code);
-    db = set_Memb_init(Memb_Compare);
     while(!deq_char_empty(&q))
     {
-        Fun(&q);
+        str f = Read(&q, IsIdent);
+        char n = Next(&q);
+        if(n == '(')
+        {
+            str s = str_copy(&f);
+            Fun(&q, &s);
+        }
+        else
+        {
+            bool mut = Mutable(&q, &f);
+            Define(&q, &f, mut);
+            Match(&q, ';');
+        }
         Spin(&q);
+        str_free(&f);
     }
+    deq_char_free(&q);
+}
+
+int
+Run(int argc, char* argv[], const char* code)
+{
+    Program(code);
+    Elem args = Command(argc, argv);
     str entry = str_init("main");
     vec_str params = vec_str_init();
     str a = str_init("argv");
-    Elem cmd = Command(argc, argv);
-    Insert(&a, cmd, true);
+    Insert(&a, args, true);
     set_Memb_node* node = Exists(&entry);
     Elem e = Call(&node->key, &params);
     str_free(&a);
     str_free(&entry);
-    set_Memb_free(&db);
-    deq_char_free(&q);
     str_free(&namespace);
     vec_str_free(&params);
+    int ret = e->poly.f64; // TODO: CHANGE THIS TO I64 AND ENSURE I64.
     Elem_free(&e); // CAN RETURN TO OS, BE NICE FOR TESTING.
+    return ret;
+}
+
+void
+Setup(void)
+{
+    namespace = str_init("");
+    db = set_Memb_init(Memb_Compare);
+}
+
+void
+Teardown(void)
+{
+    str_free(&namespace);
+    set_Memb_free(&db);
+}
+
+int
+main(int argc, char* argv[])
+{
+    Setup();
+    int ret = Run(argc, argv,
+        "add(a, b) { ret a + b; }"
+        "sub(a, b) { ret a - b; }"
+        "mul(a, b) { ret a * b; }"
+        "div(a, b) { ret a / b; }"
+        "main()"
+        "{"
+            "a := [1, 2, 3];"
+            "b := [1, 2, 3];"
+            "c := mul(a, b);"
+            "ret 1;"
+        "}");
+    Teardown();
+    return ret;
 }
