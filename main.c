@@ -975,7 +975,6 @@ Command(int argc, char* argv[])
 int
 main(int argc, char* argv[])
 {
-    Elem cmd = Command(argc, argv);
     namespace = str_init("");
     const char* code =
         "foo(A)"
@@ -1014,6 +1013,7 @@ main(int argc, char* argv[])
     str entry = str_init("main");
     vec_str params = vec_str_init();
     str a = str_init("argv");
+    Elem cmd = Command(argc, argv);
     Insert(&a, cmd);
     set_Memb_node* node = Exists(&entry);
     Elem e = Call(&node->key, &params);
