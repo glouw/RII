@@ -48,25 +48,16 @@ Memb Memb_copy(Memb*);
 set_Memb db;
 
 Elem
-Call(str*, vec_str*);
-
-Elem
-Element(deq_char*);
+Call(Memb*, vec_str*);
 
 Elem
 Expression(deq_char*);
-
-Elem
-Term(deq_char*);
-
-set_Memb
-Object(deq_char*);
 
 typedef union
 {
     set_Memb obj;
     vec_Elem arr;
-    Elem* ref;
+    Memb* ref;
     str str;
     vec_str fun;
     double f64;
@@ -183,10 +174,18 @@ Queue(const char* code)
 }
 
 void
+Unpop(deq_char* q, char c)
+{
+    if(c == '\n')
+        line -= 1;
+    deq_char_push_front(q, c);
+}
+
+void
 Requeue(deq_char* q, str* s)
 {
     for(int i = s->size - 1; i >= 0; i--)
-        deq_char_push_front(q, s->value[i]);
+        Unpop(q, s->value[i]);
 }
 
 bool
@@ -211,14 +210,6 @@ IsUpper(char c)
 }
 
 bool
-IsString(char c)
-{
-    return IsLower(c)
-        || IsUpper(c)
-        || IsSpace(c);
-}
-
-bool
 IsDigit(char c)
 {
     return c >= '0'
@@ -235,18 +226,21 @@ IsNum(char c)
 }
 
 bool
-IsValidIdent(char c)
+IsString(char c) // WHAT IS A STRING?
 {
     return IsLower(c)
         || IsUpper(c)
-        || c == '_';
+        || IsSpace(c)
+        || IsDigit(c);
 }
 
 bool
 IsIdent(char c)
 {
-    return IsValidIdent(c)
-        || IsDigit(c);
+    return IsLower(c)
+        || IsUpper(c)
+        || IsDigit(c)
+        || c == '_';
 }
 
 void
@@ -258,21 +252,31 @@ Pop(deq_char* q)
 }
 
 void
-Unpop(deq_char* q, char c)
+Comment(deq_char* q)
 {
-    if(c  == '\n')
-        line -= 1;
-    deq_char_push_front(q, c);
+    while(!deq_char_empty(q))
+    {
+        char c = *deq_char_front(q);
+        Pop(q);
+        if(c == '\n')
+            break;
+    }
 }
 
 void
 Spin(deq_char* q)
 {
     while(!deq_char_empty(q))
-        if(IsSpace(*deq_char_front(q)))
+    {
+        char c = *deq_char_front(q);
+        if(IsSpace(c))
             Pop(q);
         else
+        if(c == '#')
+            Comment(q);
+        else
             break;
+    }
 }
 
 char
@@ -346,7 +350,8 @@ str
 Prefix(str* s, str* with)
 {
     str n = str_copy(with);
-    str_append(&n, ".");
+    if(n.size > 0)
+        str_append(&n, ".");
     str_append(&n, s->value);
     return n;
 }
@@ -363,25 +368,29 @@ Fun(deq_char* q)
 {
     str f = Read(q, IsIdent);
     vec_str p = Params(q);
+    vec_str_push_back(&p, f);
     vec_str_push_back(&p, DefBlock(q));
-    set_Memb_insert(&db, Memb_Init(f, Elem_Init(FUN, (Poly) { .fun = p }))); // COULD USE INSERT?
+    Insert(&f, Elem_Init(FUN, (Poly) { .fun = p }));
 }
 
 set_Memb_node*
 Find(str* s)
 {
+    // FIRST, FIND LOCAL.
     str n = Prefix(s, &namespace);
     set_Memb_node* local = set_Memb_find(&db, (Memb) { .str = n });
     str_free(&n);
     if(local)
         return local;
+    // FAILING, FIND GLOBAL.
     return set_Memb_find(&db, (Memb) { .str = *s });
 }
 
 void
 Erase(str* s)
 {
-    set_Memb_erase_node(&db, Find(s));
+    set_Memb_node* node = Find(s);
+    set_Memb_erase_node(&db, node);
 }
 
 set_Memb_node*
@@ -393,36 +402,38 @@ Exists(str* s)
     return node;
 }
 
-Elem*
-Deref(Elem e)
+Memb*
+Deref(Memb* m)
 {
-    Elem* other = e->poly.ref;
-    while((*other)->type == REF)
-        other = (*other)->poly.ref;
+    Memb* other = m->elem->poly.ref;
+    while(other->elem->type == REF)
+        other = other->elem->poly.ref;
     return other;
+}
+
+Memb*
+Resolve(str* s)
+{
+    Memb* m = &Exists(s)->key;
+    return (m->elem->type == REF) ? Deref(m) : m;
 }
 
 Elem
 Ident(deq_char* q)
 {
     str s = Read(q, IsIdent);
+    Memb* m = Resolve(&s);
+    Elem e;
     if(Next(q) == '(')
     {
         vec_str p = Params(q);
-        Elem e = Call(&s, &p);
+        e = Call(m, &p);
         vec_str_free(&p);
-        str_free(&s);
-        return e;
     }
     else
-    {
-        Elem* ee = &Exists(&s)->key.elem;
-        if((*ee)->type == REF)
-            ee = Deref(*ee);
-        Elem e = Elem_copy(ee);
-        str_free(&s);
-        return e;
-    }
+        e = Elem_copy(&m->elem);
+    str_free(&s);
+    return e;
 }
 
 str
@@ -440,6 +451,7 @@ LoadType(deq_char* q, char l, char r)
     Type type = { 0 };
     Match(q, l);
     str t = Read(q, IsIdent);
+    // TODO: ADD MORE TYPES.
     if(Equal(&t, "f64"))
         type = F64;
     else
@@ -454,6 +466,7 @@ Load(deq_char* q, Type t)
 {
     Poly p = { 0 };
     str s = Read(q, IsNum);
+    // TODO: ADD MORE TYPES.
     switch(t)
     {
     default:
@@ -491,17 +504,6 @@ Array(deq_char* q)
     return es;
 }
 
-Elem
-Element(deq_char* q)
-{
-    char n = Next(q);
-    return (n == '"') ? Elem_Init(STR, (Poly) {.str = String(q)})
-         : (n == '{') ? Elem_Init(OBJ, (Poly) {.obj = Object(q)})
-         : (n == '[') ? Elem_Init(ARR, (Poly) {.arr = Array(q)})
-         : IsValidIdent(n) ? Ident(q)
-         : Value(q);
-}
-
 void
 Members(deq_char* q, set_Memb* m)
 {
@@ -527,21 +529,6 @@ Object(deq_char* q)
         Members(q, &m);
     Match(q, '}');
     return m;
-}
-
-Elem
-Parn(deq_char* q)
-{
-    Match(q, '(');
-    Elem a = Expression(q);
-    Match(q, ')');
-    return a;
-}
-
-Elem
-Factor(deq_char* q)
-{
-    return (Next(q) == '(') ? Parn(q) : Term(q);
 }
 
 void
@@ -683,9 +670,35 @@ Sub(Elem a, Elem b)
 }
 
 Elem
+Element(deq_char* q)
+{
+    char n = Next(q);
+    return (n == '"') ? Elem_Init(STR, (Poly) {.str = String(q)})
+         : (n == '{') ? Elem_Init(OBJ, (Poly) {.obj = Object(q)})
+         : (n == '[') ? Elem_Init(ARR, (Poly) {.arr = Array(q)})
+         : IsDigit(n) ? Value(q)
+         : Ident(q);
+}
+
+Elem
+Parn(deq_char* q)
+{
+    Match(q, '(');
+    Elem a = Expression(q);
+    Match(q, ')');
+    return a;
+}
+
+Elem
+Factor(deq_char* q)
+{
+    return (Next(q) == '(') ? Parn(q) : Element(q);
+}
+
+Elem
 Term(deq_char* q)
 {
-    Elem a = Element(q);
+    Elem a = Factor(q);
     while(true)
     {
         char n = Next(q);
@@ -713,14 +726,14 @@ Term(deq_char* q)
 Elem
 Expression(deq_char* q)
 {
-    Elem a = Factor(q);
+    Elem a = Term(q);
     while(true)
     {
         char n = Next(q);
         if(n == '+')
         {
             Match(q, '+');
-            Elem b = Element(q);
+            Elem b = Term(q);
             Add(a, b);
             Elem_free(&b);
         }
@@ -728,7 +741,7 @@ Expression(deq_char* q)
         if(n == '-')
         {
             Match(q, '-');
-            Elem b = Element(q);
+            Elem b = Term(q);
             Sub(a, b);
             Elem_free(&b);
         }
@@ -747,50 +760,87 @@ Tabs(int tabs)
             putchar(' ');
 }
 
+char*
+Code(Elem e)
+{
+    vec_str* v = &e->poly.fun;
+    return vec_str_back(v)->value;
+}
+
+size_t
+Arguments(Elem e)
+{
+    vec_str* v = &e->poly.fun;
+    return v->size - 2; // CODE AND LABEL.
+}
+
+str*
+Label(Elem e)
+{
+    vec_str* v = &e->poly.fun;
+    return &v->value[Arguments(e)];
+}
+
+void
+Elem_write(Elem e, int tabs);
+
+void
+Obj_write(Elem e, int indent)
+{
+    size_t index = 0;
+    putchar('{');
+    putchar('\n');
+    foreach(set_Memb, &e->poly.obj, it)
+    {
+        Tabs(indent);
+        printf("\"%s\" : ", it.ref->str.value);
+        Elem_write(it.ref->elem, indent);
+        index += 1;
+        if(index < e->poly.obj.size)
+            putchar(',');
+        putchar('\n');
+    }
+    Tabs(indent - 1);
+    putchar('}');
+}
+
+void
+Arr_write(Elem e, int indent)
+{
+    size_t index = 0;
+    putchar('[');
+    putchar('\n');
+    foreach(vec_Elem, &e->poly.arr, it)
+    {
+        Tabs(indent);
+        Elem_write(*it.ref, indent);
+        index += 1;
+        if(index < e->poly.arr.size)
+            putchar(',');
+        putchar('\n');
+    }
+    Tabs(indent - 1);
+    putchar(']');
+}
+
 void
 Elem_write(Elem e, int tabs)
 {
     int indent = tabs + 1;
-    size_t index = 0;
     switch(e->type)
     {
     case OBJ:
-        putchar('{');
-        putchar('\n');
-        foreach(set_Memb, &e->poly.obj, it)
-        {
-            Tabs(indent);
-            printf("\"%s\" : ", it.ref->str.value);
-            Elem_write(it.ref->elem, indent);
-            index += 1;
-            if(index < e->poly.obj.size)
-                putchar(',');
-            putchar('\n');
-        }
-        Tabs(tabs);
-        putchar('}');
+        Obj_write(e, indent);
         break;
     case ARR:
-        putchar('[');
-        putchar('\n');
-        foreach(vec_Elem, &e->poly.arr, it)
-        {
-            Tabs(indent);
-            Elem_write(*it.ref, indent);
-            index += 1;
-            if(index < e->poly.arr.size)
-                putchar(',');
-            putchar('\n');
-        }
-        Tabs(tabs);
-        putchar(']');
+        Arr_write(e, indent);
         break;
     case STR:
         printf("|str| \"%s\"", e->poly.str.value);
         break;
     case REF:
-        printf("|ref| %p ", (void*) *e->poly.ref);
-        Elem_write(*e->poly.ref, 0);
+        printf("|ref| %p ", (void*) e->poly.ref->elem);
+        Elem_write(e->poly.ref->elem, 0);
         break;
     case NUL:
         printf("|null| null");
@@ -799,7 +849,7 @@ Elem_write(Elem e, int tabs)
         printf("|f64| %lf", e->poly.f64);
         break;
     case FUN:
-        printf("|fun|");
+        printf("|fun| %s", Label(e)->value);
         break;
     }
 }
@@ -812,47 +862,25 @@ Elem_print(Elem e)
 }
 
 void
-Assign(deq_char* q, str* n)
+Define(deq_char* q, str* n)
+{
+    Match(q, ':');
+    Match(q, '=');
+    if(Find(n))
+        quit("`%s` already defined", n->value);
+    Elem e = Expression(q);
+    Insert(n, e);
+}
+
+void
+Update(deq_char* q, str* n)
 {
     Match(q, '=');
+    Exists(n);
+    Memb* m = Resolve(n);
     Elem e = Expression(q);
-    set_Memb_node* node = Find(n);
-    if(node && node->key.elem->type == REF)
-    {
-        // DEREFERENCE.
-        //
-        // foo(A)
-        // {
-        //     A = 0;
-        // }
-        //
-        // main()
-        // {
-        //     a = 1;
-        //     foo(a);
-        // }
-
-        Elem* d = Deref(node->key.elem);
-        Elem_free(d);
-        *d = e;
-    }
-    else
-    {
-        // ASSIGN OR UPDATE.
-        //
-        // main()
-        // {
-        //     a = 88; # SEE POINT 1.
-        //     a = 99; # SEE POINT 1 AND 2.
-        // }
-
-        // POINT 1.
-        if(node)
-            Erase(n);
-
-        // POINT 2.
-        Insert(n, e);
-    }
+    Elem_free(&m->elem);
+    m->elem = e;
 }
 
 void
@@ -862,17 +890,21 @@ Block(deq_char* q)
     Match(q, '{');
     while(Next(q) != '}')
     {
-        str n = Read(q, IsIdent);
-        if(Next(q) == '=')
-            Assign(q, &n);
+        str s = Read(q, IsIdent);
+        char c = Next(q);
+        if(c == ':')
+            Define(q, &s);
+        else
+        if(c == '=')
+            Update(q, &s);
         else
         {
-            Requeue(q, &n);
+            Requeue(q, &s);
             Elem e = Expression(q);
             Elem_free(&e);
         }
         Match(q, ';');
-        str_free(&n);
+        str_free(&s);
     }
     Match(q, '}');
     set_Memb diff = set_Memb_difference(&db, &old);
@@ -887,42 +919,29 @@ Block(deq_char* q)
     set_Memb_free(&diff);
 }
 
-char*
-Code(Elem e)
-{
-    vec_str* v = &e->poly.fun;
-    return vec_str_back(v)->value;
-}
-
-size_t
-Arguments(Elem e)
-{
-    vec_str* v = &e->poly.fun;
-    return v->size - 1;
-}
-
 Elem
-Call(str* s, vec_str* args)
+Call(Memb* m, vec_str* args)
 {
-    set_Memb_node* node = Exists(s);
-    Elem elem = node->key.elem;
-    if(elem->type != FUN)
+    if(m->elem->type != FUN)
         quit("expected function\n");
-    int exp = Arguments(elem);
+    int exp = Arguments(m->elem);
     int got = args->size;
     if(got != exp)
-        quit("function `%s()` got %d args but expected %d\n", s->value, got, exp);
-    deq_char q = Queue(Code(elem));
-    str new = str_copy(s);
-    Elem* elems[got];
+        quit("`%s()` got %d args but expected %d\n", m->str.value, got, exp);
+    deq_char q = Queue(Code(m->elem));
+    str new = str_copy(&m->str);
+    Memb* membs[got];
     {
         int index = 0;
         foreach(vec_str, args, it)
-            elems[index++] = &Exists(it.ref)->key.elem;
+            membs[index++] = &Exists(it.ref)->key;
     }{
         str_swap(&namespace, &new);
         for(int i = 0; i < got; i++)
-            Insert(&elem->poly.fun.value[i], Elem_Init(REF, (Poly) { .ref = elems[i] }));
+        {
+            Elem e = Elem_Init(REF, (Poly) { .ref = membs[i] });
+            Insert(&m->elem->poly.fun.value[i], e);
+        }
         Block(&q);
         str_swap(&namespace, &new);
     }
@@ -932,32 +951,58 @@ Call(str* s, vec_str* args)
     return Elem_Init(NUL, zero);
 }
 
-int
-main(void)
+Elem
+Command(int argc, char* argv[])
 {
+    str s = str_init("");
+    str_append(&s, "[");
+    for(int i = 1; i < argc; i++)
+    {
+        str_append(&s, "\"");
+        str_append(&s, argv[i]);
+        str_append(&s, "\"");
+        if(i < argc - 1)
+            str_append(&s, ",");
+    }
+    str_append(&s, "]");
+    deq_char q = Queue(s.value);
+    str_free(&s);
+    Elem e = Element(&q);
+    deq_char_free(&q);
+    return e;
+}
+
+int
+main(int argc, char* argv[])
+{
+    Elem cmd = Command(argc, argv);
     namespace = str_init("");
     const char* code =
-        "baz(A, B, C)"
+        "foo(A)"
         "{"
-            "A = A + A + [2, 3, 4];"
+            "A = A + [\"2\", \"3\", \"4\"];"
         "}"
 
-        "foo(A, B, C)"
+        "inf()"
         "{"
-            "baz(A, B, C);"
+            "inf();"
         "}"
 
-        "bar(A, B, C)"
+        "bar(A)"
         "{"
-            "foo(A, B, C);"
+            "foo(A);"
         "}"
 
+        "g(A, a)"
+        "{"
+            "A(a);"
+        "}"
+
+        "# This is a comment\n"
         "main()"
         "{"
-            "a = [1, 2, 3];"
-            "b = 2;"
-            "c = 3;"
-            "bar(a, b, c);"
+            "a := argv;"
+            "g(bar, argv);"
         "}";
     deq_char q = Queue(code);
     db = set_Memb_init(Memb_Compare);
@@ -968,11 +1013,15 @@ main(void)
     }
     str entry = str_init("main");
     vec_str params = vec_str_init();
-    Elem e = Call(&entry, &params);
-    Elem_free(&e);
+    str a = str_init("argv");
+    Insert(&a, cmd);
+    set_Memb_node* node = Exists(&entry);
+    Elem e = Call(&node->key, &params);
+    str_free(&a);
     str_free(&entry);
     set_Memb_free(&db);
     deq_char_free(&q);
     str_free(&namespace);
     vec_str_free(&params);
+    Elem_free(&e); // CAN RETURN TO OS, BE NICE FOR TESTING.
 }
