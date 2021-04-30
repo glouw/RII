@@ -2,7 +2,7 @@
 #error "Must define OP as math operator (+ - / *), etc..."
 #endif
 
-#define BAIL quit("math operator `%s` not supported for `%s: `%s`\n", operator, TypeStr[a->type], TypeStr[b->type]);
+#define BAIL quit("math operator `%s` not supported for `%s: `%s`", operator, Types[a->type], Types[b->type])
 
 switch(a->type)
 {

@@ -2,7 +2,8 @@
 #error "Must define OP as a comparison operator (< <= >= == !=), etc..."
 #endif
 
-#define BAIL quit("compare operator `%s` not supported for `%s: `%s`\n", operator, TypeStr[a->type], TypeStr[b->type]);
+#define BAIL quit("compare operator `%s` not supported for `%s: `%s`", operator, Types[a->type], Types[b->type])
+#define MISS quit("sign mismatch: `%s` `%s`", Types[a->type], Types[b->type])
 
 switch(a->type)
 {
@@ -16,10 +17,10 @@ case BLN:
 case I8: 
     switch(b->type)
     {
-        case  U8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  U8: MISS; break;
+        case U16: MISS; break;
+        case U32: MISS; break;
+        case U64: MISS; break;
         case  I8: a->poly.bln = a->poly.i8  OP b->poly.i8;  a->type = BLN; break;
         case I16: a->poly.bln = a->poly.i8  OP b->poly.i16; a->type = BLN; break;
         case I32: a->poly.bln = a->poly.i8  OP b->poly.i32; a->type = BLN; break;
@@ -33,10 +34,10 @@ case I8:
 case U8: 
     switch(b->type)
     {
-        case  I8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  I8: MISS; break;
+        case I16: MISS; break;
+        case I32: MISS; break;
+        case I64: MISS; break;
         case U16: a->poly.bln = a->poly.u8 OP b->poly.u16; a->type = BLN; break;
         case  U8: a->poly.bln = a->poly.u8 OP b->poly.u8;  a->type = BLN; break;
         case U32: a->poly.bln = a->poly.u8 OP b->poly.u32; a->type = BLN; break;
@@ -50,10 +51,10 @@ case U8:
 case I16:
     switch(b->type)
     {
-        case  U8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  U8: MISS; break;
+        case U16: MISS; break;
+        case U32: MISS; break;
+        case U64: MISS; break;
         case  I8: a->poly.bln = a->poly.i16 OP b->poly.i8;  a->type = BLN; break;
         case I16: a->poly.bln = a->poly.i16 OP b->poly.i16; a->type = BLN; break;
         case I32: a->poly.bln = a->poly.i16 OP b->poly.i32; a->type = BLN; break;
@@ -67,10 +68,10 @@ case I16:
 case U16:
     switch(b->type)
     {
-        case  I8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  I8: MISS; break;
+        case I16: MISS; break;
+        case I32: MISS; break;
+        case I64: MISS; break;
         case  U8: a->poly.bln = a->poly.u16 OP b->poly.u8;  a->type = BLN; break;
         case U16: a->poly.bln = a->poly.u16 OP b->poly.u16; a->type = BLN; break;
         case U32: a->poly.bln = a->poly.u16 OP b->poly.u32; a->type = BLN; break;
@@ -84,10 +85,10 @@ case U16:
 case I32:
     switch(b->type)
     {
-        case  U8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  U8: MISS; break;
+        case U16: MISS; break;
+        case U32: MISS; break;
+        case U64: MISS; break;
         case  I8: a->poly.bln = a->poly.i32 OP b->poly.i8;  a->type = BLN; break;
         case I16: a->poly.bln = a->poly.i32 OP b->poly.i16; a->type = BLN; break;
         case I32: a->poly.bln = a->poly.i32 OP b->poly.i32; a->type = BLN; break;
@@ -101,10 +102,10 @@ case I32:
 case U32:
     switch(b->type)
     {
-        case  I8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  I8: MISS; break;
+        case I16: MISS; break;
+        case I32: MISS; break;
+        case I64: MISS; break;
         case  U8: a->poly.bln = a->poly.u32 OP b->poly.u8;  a->type = BLN; break;
         case U16: a->poly.bln = a->poly.u32 OP b->poly.u32; a->type = BLN; break;
         case U32: a->poly.bln = a->poly.u32 OP b->poly.u32; a->type = BLN; break;
@@ -118,10 +119,10 @@ case U32:
 case I64:
     switch(b->type)
     {
-        case  U8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case U64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  U8: MISS; break;
+        case U16: MISS; break;
+        case U32: MISS; break;
+        case U64: MISS; break;
         case  I8: a->poly.bln = a->poly.i64 OP b->poly.i8;  a->type = BLN; break;
         case I16: a->poly.bln = a->poly.i64 OP b->poly.i16; a->type = BLN; break;
         case I32: a->poly.bln = a->poly.i64 OP b->poly.i32; a->type = BLN; break;
@@ -135,10 +136,10 @@ case I64:
 case U64:
     switch(b->type)
     {
-        case  I8: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I16: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I32: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
-        case I64: quit("sign mismatch: `%s` `%s`", TypeStr[a->type], TypeStr[b->type]); break;
+        case  I8: MISS; break;
+        case I16: MISS; break;
+        case I32: MISS; break;
+        case I64: MISS; break;
         case  U8: a->poly.bln = a->poly.u64 OP b->poly.u8;  a->type = BLN; break;
         case U16: a->poly.bln = a->poly.u64 OP b->poly.u16; a->type = BLN; break;
         case U32: a->poly.bln = a->poly.u64 OP b->poly.u32; a->type = BLN; break;

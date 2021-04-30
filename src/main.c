@@ -10,12 +10,16 @@
 #define T char
 #include <deq.h>
 
-static int line;
+static int Line;
 
-static str namespace;
+static str Namespace;
+
+static str Buffer;
+
+static bool Buffering;
 
 #define quit(...) \
-    printf("error: line %d: ", line), printf(__VA_ARGS__), exit(1)
+    printf("error: line %d: ", Line), printf(__VA_ARGS__), putchar('\n'), exit(1)
 
 #define TYPES \
     X(I8) X(U8) X(I16) X(U16) X(I32) X(U32) X(I64) X(U64) X(F32) X(F64) \
@@ -26,7 +30,7 @@ typedef enum { TYPES } Type;
 #undef X
 
 #define X(A) #A,
-static const char* TypeStr[] = { TYPES };
+static const char* Types[] = { TYPES };
 #undef X
 
 typedef struct Val* Elem;
@@ -261,10 +265,21 @@ Queue(const char* code)
 }
 
 static void
+Pop(deq_char* q)
+{
+    char c = *deq_char_front(q);
+    if(c == '\n')
+        Line += 1;
+    if(Buffering)
+        str_push_back(&Buffer, c);
+    deq_char_pop_front(q);
+}
+
+static void
 Unpop(deq_char* q, char c)
 {
     if(c == '\n')
-        line -= 1;
+        Line -= 1;
     deq_char_push_front(q, c);
 }
 
@@ -331,14 +346,6 @@ IsIdent(char c)
 }
 
 static void
-Pop(deq_char* q)
-{
-    if(*deq_char_front(q) == '\n')
-        line += 1;
-    deq_char_pop_front(q);
-}
-
-static void
 Comment(deq_char* q)
 {
     while(!deq_char_empty(q))
@@ -378,7 +385,7 @@ Match(deq_char* q, char c)
 {
     char n = Next(q);
     if(n != c)
-        quit("got '%c'; expected '%c'\n", n, c);
+        quit("got '%c'; expected '%c'", n, c);
     Pop(q);
 }
 
@@ -415,7 +422,7 @@ static set_Memb_node*
 Find(str* s)
 {
     // FIRST, FIND LOCAL.
-    str n = Prefix(s, &namespace);
+    str n = Prefix(s, &Namespace);
     set_Memb_node* local = set_Memb_find(&db, (Memb) { .str = n });
     str_free(&n);
     if(local)
@@ -436,14 +443,14 @@ Exists(str* s)
 {
     set_Memb_node* node = Find(s);
     if(node == NULL)
-        quit("identifier '%s' not defined\n", s->value);
+        quit("identifier '%s' not defined", s->value);
     return node;
 }
 
 static void
 Insert(str* s, Elem e, bool c)
 {
-    str n = Prefix(s, &namespace);
+    str n = Prefix(s, &Namespace);
     Memb m = Memb_init(c, n, e);
     set_Memb_insert(&db, m);
 }
@@ -452,7 +459,7 @@ static str
 ReadBlock(deq_char* q)
 {
     if(Next(q) != '{')
-        quit("expected block `{`\n");
+        quit("expected block `{`");
     int open = 0;
     str b = str_init("");
     do
@@ -481,7 +488,7 @@ Params(deq_char* q, bool check)
         vec_str_push_back(&p, s);
         char n = Next(q);
         if(IsIdent(n))
-            quit("expected ','\n");
+            quit("expected ','");
         if(n == ',')
             Match(q, ',');
     }
@@ -547,11 +554,16 @@ String(deq_char* q)
 }
 
 static Poly
-LoadValue(deq_char* q, Type t)
+LoadValue(deq_char* q, Type* t)
 {
     Poly p = { 0 };
     str s = Read(q, IsNum);
-    switch(t)
+    if(str_count(&s, '.'))
+    {
+        puts("FLOAT!");
+        *t = F64;
+    }
+    switch(*t)
     {
     case  I8: p.i8  = strtol  (s.value, NULL, 10); break;
     case  U8: p.u8  = strtoul (s.value, NULL, 10); break;
@@ -584,7 +596,7 @@ LoadType(deq_char* q, char l, char r)
     if(Equal(&t, "i64")) type = I64; else
     if(Equal(&t, "u64")) type = U64; else
     if(Equal(&t, "f32")) type = F32; else
-    if(Equal(&t, "f64")) type = F64; else quit("direct type load '%s' not supported\n", t.value);
+    if(Equal(&t, "f64")) type = F64; else quit("direct type load '%s' not supported", t.value);
     Match(q, r);
     str_free(&t);
     return type;
@@ -593,8 +605,8 @@ LoadType(deq_char* q, char l, char r)
 static Elem
 Value(deq_char* q)
 {
-    Type t = (Next(q) == '|') ? LoadType(q, '|', '|') : F64;
-    Poly p = LoadValue(q, t);
+    Type t = (Next(q) == '|') ? LoadType(q, '|', '|') : I64;
+    Poly p = LoadValue(q, &t);
     return Elem_init(t, p);
 }
 
@@ -724,9 +736,9 @@ Check(Elem a, Elem b)
     if(Basic(a) && Basic(b))
         return;
     if(a->type != b->type)
-        quit("type mismatch - types were '%s' and '%s'\n",
-            TypeStr[a->type],
-            TypeStr[b->type]);
+        quit("type mismatch - types were '%s' and '%s'",
+            Types[a->type],
+            Types[b->type]);
 }
 
 static void
@@ -742,9 +754,9 @@ Mul(Elem a, Elem b)
         PromoteMul(a, b);
         break;
     case STR: case FUN: case NUL: case BLN: case REF:
-        quit("mul (*) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("mul (*) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -762,9 +774,9 @@ Div(Elem a, Elem b)
         PromoteDiv(a, b);
         break;
     case STR: case FUN: case NUL: case BLN: case REF: 
-        quit("div (/) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("div (/) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -783,9 +795,9 @@ Add(Elem a, Elem b)
         PromoteAdd(a, b);
         break;
     case FUN: case NUL: case BLN: case REF:
-        quit("add (+) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("add (+) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -804,9 +816,9 @@ Sub(Elem a, Elem b)
         PromoteSub(a, b);
         break;
     case FUN: case NUL: case BLN: case REF:
-        quit("sub (-) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("sub (-) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -851,9 +863,9 @@ BoolEqual(Elem a, Elem b)
         break;
     case FUN: FunToBool(a, b); break;
     case NUL: case REF:
-        quit("equals (==) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("equals (==) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -873,9 +885,9 @@ BoolGT(Elem a, Elem b)
         PromoteGT(a, b);
         break;
     case FUN: case NUL: case REF:
-        quit("greater than (>) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("greater than (>) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -895,9 +907,9 @@ BoolLT(Elem a, Elem b)
         PromoteLT(a, b);
         break;
     case FUN: case NUL: case REF:
-        quit("less than (<) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("less than (<) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -917,9 +929,9 @@ BoolLTE(Elem a, Elem b)
         PromoteLTE(a, b);
         break;
     case FUN: case NUL: case REF:
-        quit("less than or equal to (<=) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("less than or equal to (<=) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -939,9 +951,9 @@ BoolGTE(Elem a, Elem b)
         PromoteGTE(a, b);
         break;
     case FUN: case NUL: case REF:
-        quit("greater than or equal to (>=) not supported for types `%s` and `%s`\n",
-            TypeStr[a->type],
-            TypeStr[b->type]); 
+        quit("greater than or equal to (>=) not supported for types `%s` and `%s`",
+            Types[a->type],
+            Types[b->type]); 
         break; 
     }
 }
@@ -1194,7 +1206,7 @@ Update(deq_char* q, str* n)
     Exists(n);
     Memb* m = Resolve(n);
     if(m->constant)
-        quit("%s `%s` is constant", TypeStr[m->elem->type], m->str.value);
+        quit("%s `%s` is constant\n", Types[m->elem->type], m->str.value);
     Elem e = Expression(q);
     Elem_free(&m->elem);
     m->elem = e;
@@ -1227,14 +1239,36 @@ static Elem
 Block(deq_char*);
 
 static void
-CondBlock(const char* code, bool* exec, Elem* ret)
+Brace(const char* code, Elem* ret)
 {
     deq_char b = Queue(code);
     Elem e = Block(&b);
     deq_char_free(&b);
     Elem_free(ret);
     *ret = e;
-    *exec = true;
+}
+
+static void
+While(deq_char* q, Elem* ret)
+{
+    bool done = false;
+    while(!done)
+    {
+        str_clear(&Buffer);
+        Buffering = true;
+        Elem e = Cond(q);
+        str code = ReadBlock(q);
+        Buffering = false;
+        if(e->poly.bln == true)
+        {
+            Brace(code.value, ret);
+            Requeue(q, &Buffer);
+        }
+        else
+            done = true;
+        str_free(&code);
+        Elem_free(&e);
+    }
 }
 
 static void
@@ -1244,7 +1278,10 @@ If(deq_char* q, bool* exec, Elem* ret)
     str code = ReadBlock(q);
     if(e->poly.bln == true)
         if(*exec == false)
-            CondBlock(code.value, exec, ret);
+        {
+            Brace(code.value, ret);
+            *exec = true;
+        }
     str_free(&code);
     Elem_free(&e);
 }
@@ -1254,7 +1291,10 @@ Else(deq_char* q, bool* exec, Elem* ret)
 {
     str code = ReadBlock(q);
     if(*exec == false)
-        CondBlock(code.value, exec, ret);
+    {
+        Brace(code.value, ret);
+        *exec = true;
+    }
     str_free(&code);
 }
 
@@ -1298,6 +1338,13 @@ Block(deq_char* q)
             ret = Expression(q);
             Match(q, ';');
             abort = true;
+        }
+        else
+        if(Equal(&s, "while"))
+        {
+            While(q, &ret);
+            if(ret->type != NUL)
+                abort = true;
         }
         else
         if(Equal(&s, "if"))
@@ -1352,18 +1399,21 @@ Call(Memb* m, vec_str* args)
     char* code = Code(m->elem);
     deq_char q = Queue(code);
     str new = str_copy(&m->str);
-    Memb* membs[got];
-    int index = 0;
-    foreach(vec_str, args, it)
-        membs[index++] = &Exists(it.ref)->key;
-    str_swap(&namespace, &new);
-    for(int i = 0; i < got; i++)
+    if(got > 0)
     {
-        Elem e = Elem_init(REF, (Poly) { .ref = membs[i] });
-        Insert(&m->elem->poly.fun.value[i], e, true);
+        Memb* membs[got];
+        int index = 0;
+        foreach(vec_str, args, it)
+            membs[index++] = &Exists(it.ref)->key;
+        str_swap(&Namespace, &new);
+        for(int i = 0; i < got; i++)
+        {
+            Elem e = Elem_init(REF, (Poly) { .ref = membs[i] });
+            Insert(&m->elem->poly.fun.value[i], e, true);
+        }
     }
     Elem ret = Block(&q);
-    str_swap(&namespace, &new);
+    str_swap(&Namespace, &new);
     deq_char_free(&q);
     str_free(&new);
     return ret;
@@ -1415,8 +1465,10 @@ Program(const char* code)
 static void
 Setup(void)
 {
-    line = 1;
-    namespace = str_init("");
+    Line = 1;
+    Namespace = str_init("");
+    Buffer = str_init("");
+    Buffering = false;
     db = set_Memb_init(Memb_compare);
     static Poly zero;
     Memb members[] = {
@@ -1431,7 +1483,7 @@ Setup(void)
 static void
 Teardown(void)
 {
-    str_free(&namespace);
+    str_free(&Namespace);
     set_Memb_free(&db);
 }
 
@@ -1447,15 +1499,15 @@ Run(int argc, char* argv[], const char* code)
     Insert(&a, args, true);
     set_Memb_node* node = Exists(&entry);
     Elem e = Call(&node->key, &params);
-    Type t = I32;
+    Type t = I64;
     if(e->type != t)
-        quit("entry `%s` expected return type `%s`\n", entry.value, TypeStr[t]);
-    int32_t ret = e->poly.i32;
+        quit("entry `%s` expected return type `%s`\n", entry.value, Types[t]);
+    int ret = e->poly.i64;
     Teardown();
     Elem_free(&e);
     str_free(&a);
     str_free(&entry);
-    str_free(&namespace);
+    str_free(&Namespace);
     vec_str_free(&params);
     return ret;
 }
@@ -1494,17 +1546,12 @@ main(int argc, char* argv[])
 
         "Main()"
         "{"
-            "a := |i8| -1.3;"
-            "b := |u8| 255 == <u8> a;"
-            "Test(F);"
-            "if(false)"
+            "mut i := 128;"
+            "while(i > 0)"
             "{"
-                "ret |i32| 1;"
+                "i = i - 1;"
             "}"
-            "else"
-            "{"
-                "ret |i32| 0;"
-            "}"
+            "ret 0;"
         "}"
     );
 }

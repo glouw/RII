@@ -1,4 +1,4 @@
-#define BAIL quit("cast `%s: to `%s` not supported\n", TypeStr[type], TypeStr[e->type]);
+#define BAIL quit("cast `%s: to `%s` not supported", Types[type], Types[e->type])
 
 switch(type)
 {
