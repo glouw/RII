@@ -930,22 +930,16 @@ static set_Memb_node*
 Find(str* s)
 {
     // FIRST, FIND LOCAL.
-    set_Memb_node* local;
-    {
-        str l = Local(s);
-        local = set_Memb_find(&db, (Memb) { .str = l });
-        str_free(&l);
-    }
+    str l = Local(s);
+    set_Memb_node* local = set_Memb_find(&db, (Memb) { .str = l });
+    str_free(&l);
     if(local)
         return local;
 
     // FAILING THAT, FIND GLOBAL.
-    set_Memb_node* globa;
-    {
-        str g = Global(s);
-        globa = set_Memb_find(&db, (Memb) { .str = g });
-        str_free(&g);
-    }
+    str g = Global(s);
+    set_Memb_node* globa = set_Memb_find(&db, (Memb) { .str = g });
+    str_free(&g);
     if(globa)
         return globa;
 
@@ -1734,7 +1728,7 @@ Mut(str* n)
     Exists(n);
     Memb* m = Resolve(n);
     if(m->constant)
-        quit("%s `%s` is constant\n", Types[m->elem->type], m->str.value);
+        quit("%s `%s` is constant", Types[m->elem->type], m->str.value);
     return m;
 }
 
@@ -1788,7 +1782,6 @@ DivEqual(deq_char* q, str* n)
     Match(q, '=');
     Memb* m = Mut(n);
     Elem e = Expression(q);
-    printf("GOT %f\n", e->poly.f64);
     Div(m->elem, e);
     Elem_free(&e);
 }
@@ -1811,7 +1804,7 @@ Cond(deq_char* q)
     Match(q, '(');
     Elem e = Expression(q);
     if(e->type != BLN)
-        quit("expression must evaluate to boolean\n");
+        quit("expression must evaluate to boolean");
     Match(q, ')');
     return e;
 }
@@ -1990,11 +1983,11 @@ static int
 CountArgs(Memb* m, vec_str* args)
 {
     if(m->elem->type != FUN)
-        quit("expected function\n");
+        quit("expected function");
     int exp = Arguments(m->elem);
     int got = args->size;
     if(got != exp)
-        quit("`%s()` got %d args but expected %d\n", m->str.value, got, exp);
+        quit("`%s()` got %d args but expected %d", m->str.value, got, exp);
     return got;
 }
 
@@ -2108,7 +2101,7 @@ Run(int argc, char* argv[], const char* code)
     Elem e = Call(&node->key, &params);
     Type t = I64;
     if(e->type != t)
-        quit("entry `%s` expected return type `%s`, got `%s`\n", entry.value, Types[t], Types[e->type]);
+        quit("entry `%s` expected return type `%s`, got `%s`", entry.value, Types[t], Types[e->type]);
     int ret = e->poly.i64;
     Teardown();
     Elem_free(&e);
