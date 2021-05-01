@@ -16,19 +16,25 @@ static bool Buffering;
 
 static int Stack;
 
-#define quit(...) \
-    printf("error: "), printf(__VA_ARGS__), putchar('\n'), exit(1)
+#define quit(...) printf("error: "), printf(__VA_ARGS__), putchar('\n'), exit(1)
 
-#define TYPES \
-    X(I8) X(U8) X(I16) X(U16) X(I32) X(U32) X(I64) X(U64) X(F32) X(F64) \
-    X(STR) X(FUN) X(REF) X(OBJ) X(ARR) X(NUL) X(BLN) X(BRK)
+#define TYPES X(I8) X(U8) X(I16) X(U16) X(I32) X(U32) X(I64) X(U64) X(F32) X(F64) X(STR) X(FUN) X(REF) X(OBJ) X(ARR) X(NUL) X(BLN) X(BRK)
+
+#define XSTR(s) STR(s)
+#define STR(s) #s
 
 #define X(A) A,
-typedef enum { TYPES } Type;
+typedef enum
+{
+    TYPES
+}
+Type;
 #undef X
 
 #define X(A) #A,
-static const char* Types[] = { TYPES };
+static const char* Types[] = {
+    TYPES
+};
 #undef X
 
 typedef struct Val* Elem;
@@ -247,7 +253,7 @@ Val;
     default:                                                                      \
     error:                                                                        \
         quit("math operator `%s` not supported for `%s: `%s`",                    \
-            operator, Types[a->type], Types[b->type]);                            \
+            STR(OP), Types[a->type], Types[b->type]);                             \
     }
 
 #define COMPARE(OP)                                                \
@@ -409,7 +415,7 @@ Val;
     default:                                                       \
     error:                                                         \
         quit("compare operator `%s` not supported for `%s: `%s`",  \
-            operator, Types[a->type], Types[b->type]);             \
+            STR(OP), Types[a->type], Types[b->type]);              \
     mismatch:                                                      \
         quit("sign mismatch: `%s` `%s`",                           \
             Types[a->type], Types[b->type]);                       \
@@ -420,63 +426,54 @@ Val;
 static void
 PromoteAdd(Elem a, Elem b)
 {
-    const char* operator = "+";
     PROMOTE(+)
 }
 
 static void
 PromoteSub(Elem a, Elem b)
 {
-    const char* operator = "-";
     PROMOTE(-)
 }
 
 static void
 PromoteDiv(Elem a, Elem b)
 {
-    const char* operator = "/";
     PROMOTE(/)
 }
 
 static void
 PromoteMul(Elem a, Elem b)
 {
-    const char* operator = "*";
     PROMOTE(*)
 }
 
 static void
 PromoteEquals(Elem a, Elem b)
 {
-    const char* operator = "==";
     COMPARE(==)
 }
 
 static void
 PromoteGT(Elem a, Elem b)
 {
-    const char* operator = ">";
     COMPARE(>)
 }
 
 static void
 PromoteLT(Elem a, Elem b)
 {
-    const char* operator = "<";
     COMPARE(<)
 }
 
 static void
 PromoteGTE(Elem a, Elem b)
 {
-    const char* operator = ">=";
     COMPARE(>=)
 }
 
 static void
 PromoteLTE(Elem a, Elem b)
 {
-    const char* operator = "<=";
     COMPARE(<=)
 }
 
@@ -2021,27 +2018,6 @@ Call(Memb* m, vec_str* args)
     return ret;
 }
 
-static Elem
-Command(int argc, char* argv[])
-{
-    str s = str_init("");
-    str_append(&s, "[");
-    for(int i = 2; i < argc; i++)
-    {
-        str_append(&s, "\"");
-        str_append(&s, argv[i]);
-        str_append(&s, "\"");
-        if(i < argc - 1)
-            str_append(&s, ",");
-    }
-    str_append(&s, "]");
-    deq_char q = Queue(s.value);
-    str_free(&s);
-    Elem e = Element(&q);
-    deq_char_free(&q);
-    return e;
-}
-
 static void
 Program(const char* code)
 {
@@ -2062,6 +2038,27 @@ Program(const char* code)
         str_free(&f);
     }
     deq_char_free(&q);
+}
+
+static Elem
+Command(int argc, char** argv)
+{
+    str s = str_init("");
+    str_append(&s, "[");
+    for(int i = 2; i < argc; i++)
+    {
+        str_append(&s, "\"");
+        str_append(&s, argv[i]);
+        str_append(&s, "\"");
+        if(i < argc - 1)
+            str_append(&s, ",");
+    }
+    str_append(&s, "]");
+    deq_char q = Queue(s.value);
+    str_free(&s);
+    Elem e = Element(&q);
+    deq_char_free(&q);
+    return e;
 }
 
 static void
@@ -2088,7 +2085,7 @@ Teardown(void)
 }
 
 static int
-Run(int argc, char* argv[], const char* code)
+Run(int argc, char** argv, const char* code)
 {
     Setup();
     Elem args = Command(argc, argv);
@@ -2127,7 +2124,7 @@ Open(const char* path)
 }
 
 int
-main(int argc, char* argv[])
+main(int argc, char** argv)
 {
     if(argc < 2)
         quit("./rr file.rr arg0 arg1 arg2");
