@@ -5,7 +5,7 @@ BIN = rr
 CC = gcc -std=c99
 
 all:
-	$(CC) src/main.c $(CFLAGS) -I ctl/ctl -o $(BIN)
+	$(CC) rr.c $(CFLAGS) -I ctl/ctl -o $(BIN)
 
 test: all
 	./$(BIN) tests/entry.rr

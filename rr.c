@@ -81,76 +81,403 @@ typedef struct Val
 }
 Val;
 
+#define PROMOTE(OP)                                                               \
+    switch(a->type)                                                               \
+    {                                                                             \
+    case I8:                                                                      \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly. i8 = a->poly.i8 OP b->poly. i8; a->type =  I8; break;  \
+        case  U8: a->poly. u8 = a->poly.i8 OP b->poly. u8; a->type =  U8; break;  \
+        case I16: a->poly.i16 = a->poly.i8 OP b->poly.i16; a->type = I16; break;  \
+        case U16: a->poly.u16 = a->poly.i8 OP b->poly.u16; a->type = U16; break;  \
+        case I32: a->poly.i32 = a->poly.i8 OP b->poly.i32; a->type = I32; break;  \
+        case U32: a->poly.u32 = a->poly.i8 OP b->poly.u32; a->type = U32; break;  \
+        case I64: a->poly.i64 = a->poly.i8 OP b->poly.i64; a->type = I64; break;  \
+        case U64: a->poly.u64 = a->poly.i8 OP b->poly.u64; a->type = U64; break;  \
+        case F32: a->poly.f32 = a->poly.i8 OP b->poly.f32; a->type = F32; break;  \
+        case F64: a->poly.f64 = a->poly.i8 OP b->poly.f64; a->type = F64; break;  \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case U8:                                                                      \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly. u8 = a->poly.u8 OP b->poly. i8; a->type =  U8; break;  \
+        case  U8: a->poly. u8 = a->poly.u8 OP b->poly. u8; a->type =  U8; break;  \
+        case I16: a->poly.i16 = a->poly.u8 OP b->poly.i16; a->type = I16; break;  \
+        case U16: a->poly.u16 = a->poly.u8 OP b->poly.u16; a->type = U16; break;  \
+        case I32: a->poly.i32 = a->poly.u8 OP b->poly.i32; a->type = I32; break;  \
+        case U32: a->poly.u32 = a->poly.u8 OP b->poly.u32; a->type = U32; break;  \
+        case I64: a->poly.i64 = a->poly.u8 OP b->poly.i64; a->type = I64; break;  \
+        case U64: a->poly.u64 = a->poly.u8 OP b->poly.u64; a->type = U64; break;  \
+        case F32: a->poly.f32 = a->poly.u8 OP b->poly.f32; a->type = F32; break;  \
+        case F64: a->poly.f64 = a->poly.u8 OP b->poly.f64; a->type = F64; break;  \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case I16:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.i16 = a->poly.i16 OP b->poly. i8; a->type = I16; break; \
+        case  U8: a->poly.i16 = a->poly.i16 OP b->poly. u8; a->type = I16; break; \
+        case I16: a->poly.i16 = a->poly.i16 OP b->poly.i16; a->type = I16; break; \
+        case U16: a->poly.u16 = a->poly.i16 OP b->poly.u16; a->type = U16; break; \
+        case I32: a->poly.i32 = a->poly.i16 OP b->poly.i32; a->type = I32; break; \
+        case U32: a->poly.u32 = a->poly.i16 OP b->poly.u32; a->type = U32; break; \
+        case I64: a->poly.i64 = a->poly.i16 OP b->poly.i64; a->type = I64; break; \
+        case U64: a->poly.u64 = a->poly.i16 OP b->poly.u64; a->type = U64; break; \
+        case F32: a->poly.f32 = a->poly.i16 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.i16 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case U16:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.u16 = a->poly.u16 OP b->poly. i8; a->type = U16; break; \
+        case  U8: a->poly.u16 = a->poly.u16 OP b->poly. u8; a->type = U16; break; \
+        case I16: a->poly.u16 = a->poly.u16 OP b->poly.i16; a->type = U16; break; \
+        case U16: a->poly.u16 = a->poly.u16 OP b->poly.u16; a->type = U16; break; \
+        case I32: a->poly.i32 = a->poly.u16 OP b->poly.i32; a->type = I32; break; \
+        case U32: a->poly.u32 = a->poly.u16 OP b->poly.u32; a->type = U32; break; \
+        case I64: a->poly.i64 = a->poly.u16 OP b->poly.i64; a->type = I64; break; \
+        case U64: a->poly.u64 = a->poly.u16 OP b->poly.u64; a->type = U64; break; \
+        case F32: a->poly.f32 = a->poly.u16 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.u16 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case I32:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.i32 = a->poly.i32 OP b->poly. i8; a->type = I32; break; \
+        case  U8: a->poly.i32 = a->poly.i32 OP b->poly. u8; a->type = I32; break; \
+        case I16: a->poly.i32 = a->poly.i32 OP b->poly.i16; a->type = I32; break; \
+        case U16: a->poly.i32 = a->poly.i32 OP b->poly.u16; a->type = I32; break; \
+        case I32: a->poly.i32 = a->poly.i32 OP b->poly.i32; a->type = I32; break; \
+        case U32: a->poly.u32 = a->poly.i32 OP b->poly.u32; a->type = U32; break; \
+        case I64: a->poly.i64 = a->poly.i32 OP b->poly.i64; a->type = I64; break; \
+        case U64: a->poly.u64 = a->poly.i32 OP b->poly.u64; a->type = U64; break; \
+        case F32: a->poly.f32 = a->poly.i32 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.i32 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case U32:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.u32 = a->poly.u32 OP b->poly. i8; a->type = U32; break; \
+        case  U8: a->poly.u32 = a->poly.u32 OP b->poly. u8; a->type = U32; break; \
+        case I16: a->poly.u32 = a->poly.u32 OP b->poly.i16; a->type = U32; break; \
+        case U16: a->poly.u32 = a->poly.u32 OP b->poly.u16; a->type = U32; break; \
+        case I32: a->poly.u32 = a->poly.u32 OP b->poly.i32; a->type = U32; break; \
+        case U32: a->poly.u32 = a->poly.u32 OP b->poly.u32; a->type = U32; break; \
+        case I64: a->poly.i64 = a->poly.u32 OP b->poly.i64; a->type = I64; break; \
+        case U64: a->poly.u64 = a->poly.u32 OP b->poly.u64; a->type = U64; break; \
+        case F32: a->poly.f32 = a->poly.u32 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.u32 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case I64:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.i64 = a->poly.i64 OP b->poly. i8; a->type = I64; break; \
+        case  U8: a->poly.i64 = a->poly.i64 OP b->poly. u8; a->type = I64; break; \
+        case I16: a->poly.i64 = a->poly.i64 OP b->poly.i16; a->type = I64; break; \
+        case U16: a->poly.i64 = a->poly.i64 OP b->poly.u16; a->type = I64; break; \
+        case I32: a->poly.i64 = a->poly.i64 OP b->poly.i32; a->type = I64; break; \
+        case U32: a->poly.i64 = a->poly.i64 OP b->poly.u32; a->type = I64; break; \
+        case I64: a->poly.i64 = a->poly.i64 OP b->poly.i64; a->type = I64; break; \
+        case U64: a->poly.u64 = a->poly.i64 OP b->poly.u64; a->type = U64; break; \
+        case F32: a->poly.f32 = a->poly.i64 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.i64 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case U64:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.u64 = a->poly.u64 OP b->poly. i8; a->type = U64; break; \
+        case  U8: a->poly.u64 = a->poly.u64 OP b->poly. u8; a->type = U64; break; \
+        case I16: a->poly.u64 = a->poly.u64 OP b->poly.i16; a->type = U64; break; \
+        case U16: a->poly.u64 = a->poly.u64 OP b->poly.u16; a->type = U64; break; \
+        case I32: a->poly.u64 = a->poly.u64 OP b->poly.i32; a->type = U64; break; \
+        case U32: a->poly.u64 = a->poly.u64 OP b->poly.u32; a->type = U64; break; \
+        case I64: a->poly.u64 = a->poly.u64 OP b->poly.i64; a->type = U64; break; \
+        case U64: a->poly.u64 = a->poly.u64 OP b->poly.u64; a->type = U64; break; \
+        case F32: a->poly.f32 = a->poly.u64 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.u64 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case F32:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.f32 = a->poly.f32 OP b->poly. i8; a->type = F32; break; \
+        case  U8: a->poly.f32 = a->poly.f32 OP b->poly. u8; a->type = F32; break; \
+        case I16: a->poly.f32 = a->poly.f32 OP b->poly.i16; a->type = F32; break; \
+        case U16: a->poly.f32 = a->poly.f32 OP b->poly.u16; a->type = F32; break; \
+        case I32: a->poly.f32 = a->poly.f32 OP b->poly.i32; a->type = F32; break; \
+        case U32: a->poly.f32 = a->poly.f32 OP b->poly.u32; a->type = F32; break; \
+        case I64: a->poly.f32 = a->poly.f32 OP b->poly.i64; a->type = F32; break; \
+        case U64: a->poly.f32 = a->poly.f32 OP b->poly.u64; a->type = F32; break; \
+        case F32: a->poly.f32 = a->poly.f32 OP b->poly.f32; a->type = F32; break; \
+        case F64: a->poly.f64 = a->poly.f32 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    case F64:                                                                     \
+        switch(b->type)                                                           \
+        {                                                                         \
+        case  I8: a->poly.f64 = a->poly.f64 OP b->poly. i8; a->type = F64; break; \
+        case  U8: a->poly.f64 = a->poly.f64 OP b->poly. u8; a->type = F64; break; \
+        case I16: a->poly.f64 = a->poly.f64 OP b->poly.i16; a->type = F64; break; \
+        case U16: a->poly.f64 = a->poly.f64 OP b->poly.u16; a->type = F64; break; \
+        case I32: a->poly.f64 = a->poly.f64 OP b->poly.i32; a->type = F64; break; \
+        case U32: a->poly.f64 = a->poly.f64 OP b->poly.u32; a->type = F64; break; \
+        case I64: a->poly.f64 = a->poly.f64 OP b->poly.i64; a->type = F64; break; \
+        case U64: a->poly.f64 = a->poly.f64 OP b->poly.u64; a->type = F64; break; \
+        case F32: a->poly.f64 = a->poly.f64 OP b->poly.f32; a->type = F64; break; \
+        case F64: a->poly.f64 = a->poly.f64 OP b->poly.f64; a->type = F64; break; \
+        default: goto error;                                                      \
+        }                                                                         \
+        break;                                                                    \
+    default:                                                                      \
+    error:                                                                        \
+        quit("math operator `%s` not supported for `%s: `%s`",                    \
+            operator, Types[a->type], Types[b->type]);                            \
+    }
+
+#define COMPARE(OP)                                                \
+    switch(a->type)                                                \
+    {                                                              \
+    case BLN:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case I8:                                                       \
+        switch(b->type)                                            \
+        {                                                          \
+        case  U8: case U16: case U32: case U64: goto mismatch;     \
+        case  I8: a->poly.bln = a->poly.i8  OP b->poly. i8; break; \
+        case I32: a->poly.bln = a->poly.i8  OP b->poly.i32; break; \
+        case F32: a->poly.bln = a->poly.i8  OP b->poly.f32; break; \
+        case I16: a->poly.bln = a->poly.i8  OP b->poly.i16; break; \
+        case I64: a->poly.bln = a->poly.i8  OP b->poly.i64; break; \
+        case F64: a->poly.bln = a->poly.i8  OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case U8:                                                       \
+        switch(b->type)                                            \
+        {                                                          \
+        case  I8: case I16: case I32: case I64: goto mismatch;     \
+        case U16: a->poly.bln = a->poly. u8 OP b->poly.u16; break; \
+        case U32: a->poly.bln = a->poly. u8 OP b->poly.u32; break; \
+        case F32: a->poly.bln = a->poly. u8 OP b->poly.f32; break; \
+        case  U8: a->poly.bln = a->poly. u8 OP b->poly. u8; break; \
+        case U64: a->poly.bln = a->poly. u8 OP b->poly.u64; break; \
+        case F64: a->poly.bln = a->poly. u8 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case I16:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  U8: case U16: case U32: case U64: goto mismatch;     \
+        case  I8: a->poly.bln = a->poly.i16 OP b->poly. i8; break; \
+        case I32: a->poly.bln = a->poly.i16 OP b->poly.i32; break; \
+        case F32: a->poly.bln = a->poly.i16 OP b->poly.f32; break; \
+        case I16: a->poly.bln = a->poly.i16 OP b->poly.i16; break; \
+        case I64: a->poly.bln = a->poly.i16 OP b->poly.i64; break; \
+        case F64: a->poly.bln = a->poly.i16 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case U16:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  I8: case I16: case I32: case I64: goto mismatch;     \
+        case  U8: a->poly.bln = a->poly.u16 OP b->poly. u8; break; \
+        case U32: a->poly.bln = a->poly.u16 OP b->poly.u32; break; \
+        case F32: a->poly.bln = a->poly.u16 OP b->poly.f32; break; \
+        case U16: a->poly.bln = a->poly.u16 OP b->poly.u16; break; \
+        case U64: a->poly.bln = a->poly.u16 OP b->poly.u64; break; \
+        case F64: a->poly.bln = a->poly.u16 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case I32:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  U8: case U16: case U32: case U64: goto mismatch;     \
+        case  I8: a->poly.bln = a->poly.i32 OP b->poly. i8; break; \
+        case I32: a->poly.bln = a->poly.i32 OP b->poly.i32; break; \
+        case F32: a->poly.bln = a->poly.i32 OP b->poly.f32; break; \
+        case I16: a->poly.bln = a->poly.i32 OP b->poly.i16; break; \
+        case I64: a->poly.bln = a->poly.i32 OP b->poly.i64; break; \
+        case F64: a->poly.bln = a->poly.i32 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case U32:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  I8: case I16: case I32: case I64: goto mismatch;     \
+        case  U8: a->poly.bln = a->poly.u32 OP b->poly. u8; break; \
+        case U32: a->poly.bln = a->poly.u32 OP b->poly.u32; break; \
+        case F32: a->poly.bln = a->poly.u32 OP b->poly.f32; break; \
+        case U16: a->poly.bln = a->poly.u32 OP b->poly.u32; break; \
+        case U64: a->poly.bln = a->poly.u32 OP b->poly.u64; break; \
+        case F64: a->poly.bln = a->poly.u32 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case I64:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  U8: case U16: case U32: case U64: goto mismatch;     \
+        case  I8: a->poly.bln = a->poly.i64 OP b->poly. i8; break; \
+        case I32: a->poly.bln = a->poly.i64 OP b->poly.i32; break; \
+        case F32: a->poly.bln = a->poly.i64 OP b->poly.f32; break; \
+        case I16: a->poly.bln = a->poly.i64 OP b->poly.i16; break; \
+        case I64: a->poly.bln = a->poly.i64 OP b->poly.i64; break; \
+        case F64: a->poly.bln = a->poly.i64 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case U64:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  I8: case I16: case I32: case I64: goto mismatch;     \
+        case  U8: a->poly.bln = a->poly.u64 OP b->poly. u8; break; \
+        case U32: a->poly.bln = a->poly.u64 OP b->poly.u32; break; \
+        case F32: a->poly.bln = a->poly.u64 OP b->poly.f32; break; \
+        case U16: a->poly.bln = a->poly.u64 OP b->poly.u16; break; \
+        case U64: a->poly.bln = a->poly.u64 OP b->poly.u64; break; \
+        case F64: a->poly.bln = a->poly.u64 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case F32:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  I8: a->poly.bln = a->poly.f32 OP b->poly. i8; break; \
+        case I16: a->poly.bln = a->poly.f32 OP b->poly.i16; break; \
+        case I32: a->poly.bln = a->poly.f32 OP b->poly.i32; break; \
+        case I64: a->poly.bln = a->poly.f32 OP b->poly.i64; break; \
+        case F32: a->poly.bln = a->poly.f32 OP b->poly.f32; break; \
+        case  U8: a->poly.bln = a->poly.f32 OP b->poly. u8; break; \
+        case U16: a->poly.bln = a->poly.f32 OP b->poly.u16; break; \
+        case U32: a->poly.bln = a->poly.f32 OP b->poly.u32; break; \
+        case U64: a->poly.bln = a->poly.f32 OP b->poly.u64; break; \
+        case F64: a->poly.bln = a->poly.f32 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    case F64:                                                      \
+        switch(b->type)                                            \
+        {                                                          \
+        case  I8: a->poly.bln = a->poly.f64 OP b->poly. i8; break; \
+        case I16: a->poly.bln = a->poly.f64 OP b->poly.i16; break; \
+        case I32: a->poly.bln = a->poly.f64 OP b->poly.i32; break; \
+        case I64: a->poly.bln = a->poly.f64 OP b->poly.i64; break; \
+        case  U8: a->poly.bln = a->poly.f64 OP b->poly. u8; break; \
+        case U16: a->poly.bln = a->poly.f64 OP b->poly.u16; break; \
+        case U32: a->poly.bln = a->poly.f64 OP b->poly.u32; break; \
+        case U64: a->poly.bln = a->poly.f64 OP b->poly.u64; break; \
+        case F32: a->poly.bln = a->poly.f64 OP b->poly.f32; break; \
+        case F64: a->poly.bln = a->poly.f64 OP b->poly.f64; break; \
+        case BLN: a->poly.bln = a->poly.bln OP b->poly.bln; break; \
+        default: goto error;                                       \
+        }                                                          \
+        break;                                                     \
+    default:                                                       \
+    error:                                                         \
+        quit("compare operator `%s` not supported for `%s: `%s`",  \
+            operator, Types[a->type], Types[b->type]);             \
+    mismatch:                                                      \
+        quit("sign mismatch: `%s` `%s`",                           \
+            Types[a->type], Types[b->type]);                       \
+        break;                                                     \
+    }                                                              \
+    a->type = BLN; 
+
 static void
 PromoteAdd(Elem a, Elem b)
 {
     const char* operator = "+";
-#define OP +
-#include "promote.c"
+    PROMOTE(+)
 }
 
 static void
 PromoteSub(Elem a, Elem b)
 {
     const char* operator = "-";
-#define OP -
-#include "promote.c"
+    PROMOTE(-)
 }
 
 static void
 PromoteDiv(Elem a, Elem b)
 {
     const char* operator = "/";
-#define OP /
-#include "promote.c"
+    PROMOTE(/)
 }
 
 static void
 PromoteMul(Elem a, Elem b)
 {
     const char* operator = "*";
-#define OP *
-#include "promote.c"
+    PROMOTE(*)
 }
 
 static void
 PromoteEquals(Elem a, Elem b)
 {
     const char* operator = "==";
-#define OP ==
-#include "compare.c"
+    COMPARE(==)
 }
 
 static void
 PromoteGT(Elem a, Elem b)
 {
     const char* operator = ">";
-#define OP >
-#include "compare.c"
+    COMPARE(>)
 }
 
 static void
 PromoteLT(Elem a, Elem b)
 {
     const char* operator = "<";
-#define OP <
-#include "compare.c"
+    COMPARE(<)
 }
 
 static void
 PromoteGTE(Elem a, Elem b)
 {
     const char* operator = ">=";
-#define OP >=
-#include "compare.c"
+    COMPARE(>=)
 }
 
 static void
 PromoteLTE(Elem a, Elem b)
 {
     const char* operator = "<=";
-#define OP <=
-#include "compare.c"
+    COMPARE(<=)
 }
 
 static void
@@ -162,110 +489,160 @@ Cast(Elem e, Type type)
     case I8: 
         switch(e->type)
         {
-        case  I8: e->poly.i8 = e->poly.i8;  break; case  U8: e->poly.i8 = e->poly.u8;  break;
-        case I16: e->poly.i8 = e->poly.i16; break; case U16: e->poly.i8 = e->poly.u16; break;
-        case I32: e->poly.i8 = e->poly.i32; break; case U32: e->poly.i8 = e->poly.u32; break;
-        case I64: e->poly.i8 = e->poly.i64; break; case U64: e->poly.i8 = e->poly.u64; break;
-        case F32: e->poly.i8 = e->poly.f32; break; case F64: e->poly.i8 = e->poly.f64; break;
+        case  I8: e->poly.i8 = e->poly.i8;  break;
+        case I16: e->poly.i8 = e->poly.i16; break;
+        case I32: e->poly.i8 = e->poly.i32; break;
+        case I64: e->poly.i8 = e->poly.i64; break;
+        case F32: e->poly.i8 = e->poly.f32; break;
+        case  U8: e->poly.i8 = e->poly.u8;  break;
+        case U16: e->poly.i8 = e->poly.u16; break;
+        case U32: e->poly.i8 = e->poly.u32; break;
+        case U64: e->poly.i8 = e->poly.u64; break;
+        case F64: e->poly.i8 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case U8: 
         switch(e->type)
         {
-        case  I8: e->poly.u8 = e->poly.i8;  break; case  U8: e->poly.u8 = e->poly.u8;  break;
-        case I16: e->poly.u8 = e->poly.i16; break; case U16: e->poly.u8 = e->poly.u16; break;
-        case I32: e->poly.u8 = e->poly.i32; break; case U32: e->poly.u8 = e->poly.u32; break;
-        case I64: e->poly.u8 = e->poly.i64; break; case U64: e->poly.u8 = e->poly.u64; break;
-        case F32: e->poly.u8 = e->poly.f32; break; case F64: e->poly.u8 = e->poly.f64; break;
+        case  I8: e->poly.u8 = e->poly.i8;  break;
+        case I16: e->poly.u8 = e->poly.i16; break;
+        case I32: e->poly.u8 = e->poly.i32; break;
+        case I64: e->poly.u8 = e->poly.i64; break;
+        case F32: e->poly.u8 = e->poly.f32; break;
+        case  U8: e->poly.u8 = e->poly.u8;  break;
+        case U16: e->poly.u8 = e->poly.u16; break;
+        case U32: e->poly.u8 = e->poly.u32; break;
+        case U64: e->poly.u8 = e->poly.u64; break;
+        case F64: e->poly.u8 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case I16:
         switch(e->type)
         {
-        case  I8: e->poly.i16 = e->poly.i8;  break; case  U8: e->poly.i16 = e->poly.u8;  break;
-        case I16: e->poly.i16 = e->poly.i16; break; case U16: e->poly.i16 = e->poly.u16; break;
-        case I32: e->poly.i16 = e->poly.i32; break; case U32: e->poly.i16 = e->poly.u32; break;
-        case I64: e->poly.i16 = e->poly.i64; break; case U64: e->poly.i16 = e->poly.u64; break;
-        case F32: e->poly.i16 = e->poly.f32; break; case F64: e->poly.i16 = e->poly.f64; break;
+        case  I8: e->poly.i16 = e->poly.i8;  break;
+        case I16: e->poly.i16 = e->poly.i16; break;
+        case I32: e->poly.i16 = e->poly.i32; break;
+        case I64: e->poly.i16 = e->poly.i64; break;
+        case F32: e->poly.i16 = e->poly.f32; break;
+        case  U8: e->poly.i16 = e->poly.u8;  break;
+        case U16: e->poly.i16 = e->poly.u16; break;
+        case U32: e->poly.i16 = e->poly.u32; break;
+        case U64: e->poly.i16 = e->poly.u64; break;
+        case F64: e->poly.i16 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case U16:
         switch(e->type)
         {
-        case  I8: e->poly.u16 = e->poly.i8;  break; case  U8: e->poly.u16 = e->poly.u8;  break;
-        case I16: e->poly.u16 = e->poly.i16; break; case U16: e->poly.u16 = e->poly.u16; break;
-        case I32: e->poly.u16 = e->poly.i32; break; case U32: e->poly.u16 = e->poly.u32; break;
-        case I64: e->poly.u16 = e->poly.i64; break; case U64: e->poly.u16 = e->poly.u64; break;
-        case F32: e->poly.u16 = e->poly.f32; break; case F64: e->poly.u16 = e->poly.f64; break;
+        case  I8: e->poly.u16 = e->poly.i8;  break;
+        case I16: e->poly.u16 = e->poly.i16; break;
+        case I32: e->poly.u16 = e->poly.i32; break;
+        case I64: e->poly.u16 = e->poly.i64; break;
+        case F32: e->poly.u16 = e->poly.f32; break;
+        case  U8: e->poly.u16 = e->poly.u8;  break;
+        case U16: e->poly.u16 = e->poly.u16; break;
+        case U32: e->poly.u16 = e->poly.u32; break;
+        case U64: e->poly.u16 = e->poly.u64; break;
+        case F64: e->poly.u16 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case I32:
         switch(e->type)
         {
-        case  I8: e->poly.i32 = e->poly.i8;  break; case  U8: e->poly.i32 = e->poly.u8;  break;
-        case I16: e->poly.i32 = e->poly.i16; break; case U16: e->poly.i32 = e->poly.u16; break;
-        case I32: e->poly.i32 = e->poly.i32; break; case U32: e->poly.i32 = e->poly.u32; break;
-        case I64: e->poly.i32 = e->poly.i64; break; case U64: e->poly.i32 = e->poly.u64; break;
-        case F32: e->poly.i32 = e->poly.f32; break; case F64: e->poly.i32 = e->poly.f64; break;
+        case  I8: e->poly.i32 = e->poly.i8;  break;
+        case I16: e->poly.i32 = e->poly.i16; break;
+        case I32: e->poly.i32 = e->poly.i32; break;
+        case I64: e->poly.i32 = e->poly.i64; break;
+        case F32: e->poly.i32 = e->poly.f32; break;
+        case  U8: e->poly.i32 = e->poly.u8;  break;
+        case U16: e->poly.i32 = e->poly.u16; break;
+        case U32: e->poly.i32 = e->poly.u32; break;
+        case U64: e->poly.i32 = e->poly.u64; break;
+        case F64: e->poly.i32 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case U32:
         switch(e->type)
         {
-        case  I8: e->poly.u32 = e->poly.i8;  break; case  U8: e->poly.u32 = e->poly.u8;  break;
-        case I16: e->poly.u32 = e->poly.i16; break; case U16: e->poly.u32 = e->poly.u16; break;
-        case I32: e->poly.u32 = e->poly.i32; break; case U32: e->poly.u32 = e->poly.u32; break;
-        case I64: e->poly.u32 = e->poly.i64; break; case U64: e->poly.u32 = e->poly.u64; break;
-        case F32: e->poly.u32 = e->poly.f32; break; case F64: e->poly.u32 = e->poly.f64; break;
+        case  I8: e->poly.u32 = e->poly.i8;  break;
+        case I16: e->poly.u32 = e->poly.i16; break;
+        case I32: e->poly.u32 = e->poly.i32; break;
+        case I64: e->poly.u32 = e->poly.i64; break;
+        case F32: e->poly.u32 = e->poly.f32; break;
+        case  U8: e->poly.u32 = e->poly.u8;  break;
+        case U16: e->poly.u32 = e->poly.u16; break;
+        case U32: e->poly.u32 = e->poly.u32; break;
+        case U64: e->poly.u32 = e->poly.u64; break;
+        case F64: e->poly.u32 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case I64:
         switch(e->type)
         {
-        case  I8: e->poly.i64 = e->poly.i8;  break; case  U8: e->poly.i64 = e->poly.u8;  break;
-        case I16: e->poly.i64 = e->poly.i16; break; case U16: e->poly.i64 = e->poly.u16; break;
-        case I32: e->poly.i64 = e->poly.i32; break; case U32: e->poly.i64 = e->poly.u32; break;
-        case I64: e->poly.i64 = e->poly.i64; break; case U64: e->poly.i64 = e->poly.u64; break;
-        case F32: e->poly.i64 = e->poly.f32; break; case F64: e->poly.i64 = e->poly.f64; break;
+        case  I8: e->poly.i64 = e->poly.i8;  break;
+        case I16: e->poly.i64 = e->poly.i16; break;
+        case I32: e->poly.i64 = e->poly.i32; break;
+        case I64: e->poly.i64 = e->poly.i64; break;
+        case F32: e->poly.i64 = e->poly.f32; break;
+        case  U8: e->poly.i64 = e->poly.u8;  break;
+        case U16: e->poly.i64 = e->poly.u16; break;
+        case U32: e->poly.i64 = e->poly.u32; break;
+        case U64: e->poly.i64 = e->poly.u64; break;
+        case F64: e->poly.i64 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case U64:
         switch(e->type)
         {
-        case  I8: e->poly.u64 = e->poly.i8;  break; case  U8: e->poly.u64 = e->poly.u8;  break;
-        case I16: e->poly.u64 = e->poly.i16; break; case U16: e->poly.u64 = e->poly.u16; break;
-        case I32: e->poly.u64 = e->poly.i32; break; case U32: e->poly.u64 = e->poly.u32; break;
-        case I64: e->poly.u64 = e->poly.i64; break; case U64: e->poly.u64 = e->poly.u64; break;
-        case F32: e->poly.u64 = e->poly.f32; break; case F64: e->poly.u64 = e->poly.f64; break;
+        case  I8: e->poly.u64 = e->poly.i8;  break;
+        case I16: e->poly.u64 = e->poly.i16; break;
+        case I32: e->poly.u64 = e->poly.i32; break;
+        case I64: e->poly.u64 = e->poly.i64; break;
+        case F32: e->poly.u64 = e->poly.f32; break;
+        case  U8: e->poly.u64 = e->poly.u8;  break;
+        case U16: e->poly.u64 = e->poly.u16; break;
+        case U32: e->poly.u64 = e->poly.u32; break;
+        case U64: e->poly.u64 = e->poly.u64; break;
+        case F64: e->poly.u64 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case F32:
         switch(e->type)
         {
-        case  I8: e->poly.f32 = e->poly.i8;  break; case  U8: e->poly.f32 = e->poly.u8;  break;
-        case I16: e->poly.f32 = e->poly.i16; break; case U16: e->poly.f32 = e->poly.u16; break;
-        case I32: e->poly.f32 = e->poly.i32; break; case U32: e->poly.f32 = e->poly.u32; break;
-        case I64: e->poly.f32 = e->poly.i64; break; case U64: e->poly.f32 = e->poly.u64; break;
-        case F32: e->poly.f32 = e->poly.f32; break; case F64: e->poly.f32 = e->poly.f64; break;
+        case  I8: e->poly.f32 = e->poly.i8;  break;
+        case I16: e->poly.f32 = e->poly.i16; break;
+        case I32: e->poly.f32 = e->poly.i32; break;
+        case I64: e->poly.f32 = e->poly.i64; break;
+        case F32: e->poly.f32 = e->poly.f32; break;
+        case  U8: e->poly.f32 = e->poly.u8;  break;
+        case U16: e->poly.f32 = e->poly.u16; break;
+        case U32: e->poly.f32 = e->poly.u32; break;
+        case U64: e->poly.f32 = e->poly.u64; break;
+        case F64: e->poly.f32 = e->poly.f64; break;
         default: goto error;
         }
         break;
     case F64:
         switch(e->type)
         {
-        case  I8: e->poly.f64 = e->poly.i8;  break; case  U8: e->poly.f64 = e->poly.u8;  break;
-        case I16: e->poly.f64 = e->poly.i16; break; case U16: e->poly.f64 = e->poly.u16; break;
-        case I32: e->poly.f64 = e->poly.i32; break; case U32: e->poly.f64 = e->poly.u32; break;
-        case I64: e->poly.f64 = e->poly.i64; break; case U64: e->poly.f64 = e->poly.u64; break;
-        case F32: e->poly.f64 = e->poly.f32; break; case F64: e->poly.f64 = e->poly.f64; break;
+        case  I8: e->poly.f64 = e->poly.i8;  break;
+        case I16: e->poly.f64 = e->poly.i16; break;
+        case I32: e->poly.f64 = e->poly.i32; break;
+        case I64: e->poly.f64 = e->poly.i64; break;
+        case F32: e->poly.f64 = e->poly.f32; break;
+        case  U8: e->poly.f64 = e->poly.u8;  break;
+        case U16: e->poly.f64 = e->poly.u16; break;
+        case U32: e->poly.f64 = e->poly.u32; break;
+        case U64: e->poly.f64 = e->poly.u64; break;
+        case F64: e->poly.f64 = e->poly.f64; break;
         default: goto error;
         }
         break;
@@ -460,7 +837,8 @@ IsIdent(char c)
 static bool
 IsBasic(Elem a)
 {
-    return a->type >= I8 && a->type <= F64;
+    return a->type >= I8
+        && a->type <= F64;
 }
 
 static void
@@ -1170,26 +1548,29 @@ static Elem
 Expression(deq_char* q)
 {
     Elem a = Term(q);
-    while(true)
+    bool done = false;
+    while(!done)
     {
         char n = Next(q);
-        if(n == '+')
+        switch(n)
+        {
+        case '+':
         {
             Match(q, '+');
             Elem b = Term(q);
             Add(a, b);
             Elem_free(&b);
+            break;
         }
-        else
-        if(n == '-')
+        case '-':
         {
             Match(q, '-');
             Elem b = Term(q);
             Sub(a, b);
             Elem_free(&b);
+            break;
         }
-        else
-        if(n == '!')
+        case '!':
         {
             Match(q, '!');
             Match(q, '=');
@@ -1197,18 +1578,18 @@ Expression(deq_char* q)
             BoolEqual(a, b);
             BoolNot(a);
             Elem_free(&b);
+            break;
         }
-        else
-        if(n == '=')
+        case '=':
         {
             Match(q, '=');
             Match(q, '=');
             Elem b = Expression(q);
             BoolEqual(a, b);
             Elem_free(&b);
+            break;
         }
-        else
-        if(n == '>')
+        case '>':
         {
             Match(q, '>');
             if(Next(q) == '=')
@@ -1224,9 +1605,9 @@ Expression(deq_char* q)
                 BoolGT(a, b);
                 Elem_free(&b);
             }
+            break;
         }
-        else
-        if(n == '<')
+        case '<':
         {
             Match(q, '<');
             if(Next(q) == '=')
@@ -1242,9 +1623,12 @@ Expression(deq_char* q)
                 BoolLT(a, b);
                 Elem_free(&b);
             }
-        }
-        else
             break;
+        }
+        default:
+            done = true;
+            break;
+        }
     }
     return a;
 }
@@ -1576,11 +1960,10 @@ Block(deq_char* q)
             case '*': MulEqual(q, &s); break;
             case '/': DivEqual(q, &s); break;
             default:
-                {
-                    Requeue(q, &s);
-                    Elem e = Expression(q);
-                    Elem_free(&e);
-                }
+                Requeue(q, &s);
+                Elem e = Expression(q);
+                Elem_free(&e);
+                break;
             }
             Match(q, ';');
         }
@@ -1603,49 +1986,45 @@ Block(deq_char* q)
     return ret;
 }
 
+static int
+CountArgs(Memb* m, vec_str* args)
+{
+    if(m->elem->type != FUN)
+        quit("expected function\n");
+    int exp = Arguments(m->elem);
+    int got = args->size;
+    if(got != exp)
+        quit("`%s()` got %d args but expected %d\n", m->str.value, got, exp);
+    return got;
+}
+
+static deq_char
+PushArgs(Memb* m, vec_str* args, int count)
+{
+    Memb* membs[count + 1]; // +1 FOR VLA SAFETY.
+    int index = 0;
+    foreach(vec_str, args, it)
+        membs[index++] = &Exists(it.ref)->key;
+    deq_char q = Queue(Code(m->elem));
+    Stack += 1;
+    for(int i = 0; i < count; i++)
+    {
+        Elem e = Elem_init(REF, (Poly) { .ref = membs[i] });
+        Insert(&m->elem->poly.fun.value[i], e, true);
+    }
+    return q;
+}
+
 static Elem
 Call(Memb* m, vec_str* args)
 {
-    // ENSURE ARGUMENT PARAMETER COUNT MATCHES.
-
-    int got;
-    {
-        if(m->elem->type != FUN)
-            quit("expected function\n");
-        int exp = Arguments(m->elem);
-        got = args->size;
-        if(got != exp)
-            quit("`%s()` got %d args but expected %d\n", m->str.value, got, exp);
-    }
-
-    // ENSURE VARIABLES EXIST.
-
-    Memb* membs[got + 1]; // (+1) BECAUSE VLAS ARE BROKEN.
-    {
-        int index = 0;
-        foreach(vec_str, args, it)
-            membs[index++] = &Exists(it.ref)->key;
-    }
-
-    // PUSH REFERENCES.
-
-    Elem ret;
-    {
-        deq_char q = Queue(Code(m->elem));
-        Stack += 1;
-        for(int i = 0; i < got; i++)
-        {
-            Elem e = Elem_init(REF, (Poly) { .ref = membs[i] });
-            Insert(&m->elem->poly.fun.value[i], e, true);
-        }
-        ret = Block(&q);
-        Stack -= 1;
-        deq_char_free(&q);
-    }
-
+    int count = CountArgs(m, args);
+    deq_char q = PushArgs(m, args, count);
+    Elem ret = Block(&q);
+    Stack -= 1;
+    deq_char_free(&q);
     if(ret->type == BRK)
         quit("cannot break a function");
-
     return ret;
 }
 
