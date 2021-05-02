@@ -5,14 +5,24 @@ BIN = rr
 
 CC = gcc -std=c99
 
+SRC = rr.c
+
+INC = ctl/ctl
+
 all:
-	$(CC) rr.c $(CFLAGS) -I ctl/ctl -o $(BIN)
+	$(CC) $(SRC) $(CFLAGS) -I $(INC) -o $(BIN)
 
 test: all
 	./$(BIN) tests/for.rr
 	./$(BIN) tests/while.rr
 	./$(BIN) tests/entry.rr
+	./$(BIN) tests/ref.rr
+	./$(BIN) tests/fun.rr
+	./$(BIN) tests/if.rr
+	./$(BIN) tests/break.rr
+	./$(BIN) tests/argv.rr testing cmd params
 	./$(BIN) examples/fact.rr
+	@printf "\n>> ALLS WELL THAT ENDS WELL\n\n"
 
 clean:
 	rm -f $(BIN)

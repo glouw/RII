@@ -1,0 +1,11 @@
+Main()
+{
+    if(argv == ["testing", "cmd", "params"])
+    {
+        ret 0;
+    }
+    else
+    {
+        ret 1;
+    }
+}

@@ -1,0 +1,21 @@
+C(ref)
+{
+    ref = 0;
+}
+
+B(ref)
+{
+    C(ref);
+}
+
+A(ref)
+{
+    B(ref);
+}
+
+Main()
+{
+    mut a := 1;
+    A(a);
+    ret a;
+}

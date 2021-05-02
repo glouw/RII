@@ -904,24 +904,22 @@ Read(deq_char* q, bool clause(char))
 }
 
 static str
-Global(str* s)
+Global(char* s)
 {
-    str o = str_init("");
-    str_append(&o, "0");
-    str_append(&o, ".");
-    str_append(&o, s->value);
+    str o = str_init("0.");
+    str_append(&o, s);
     return o;
 }
 
 static str
-Local(str* s)
+Local(char* s)
 {
     char buffer[32] = { 0 }; // BIG ENOUGH FOR UINT64_T IF NEEDED.
     sprintf(buffer, "%d", Stack);
     str o = str_init("");
     str_append(&o, buffer);
     str_append(&o, ".");
-    str_append(&o, s->value);
+    str_append(&o, s);
     return o;
 }
 
@@ -929,14 +927,14 @@ static set_Memb_node*
 Find(str* s)
 {
     // FIRST, FIND LOCAL.
-    str l = Local(s);
+    str l = Local(s->value);
     set_Memb_node* local = set_Memb_find(&db, (Memb) { .str = l });
     str_free(&l);
     if(local)
         return local;
 
     // FAILING THAT, FIND GLOBAL.
-    str g = Global(s);
+    str g = Global(s->value);
     set_Memb_node* globa = set_Memb_find(&db, (Memb) { .str = g });
     str_free(&g);
     if(globa)
@@ -965,7 +963,7 @@ Exists(str* s)
 static void
 Insert(str* s, Elem e, bool c, bool a)
 {
-    str n = Local(s);
+    str n = Local(s->value);
     Memb m = Memb_init(c, a, n, e);
     set_Memb_insert(&db, m);
 }
@@ -1889,7 +1887,7 @@ For(deq_char* q, Elem* ret)
 
         str_free(&code);
 
-        str l = Local(&k);
+        str l = Local(k.value);
         Erase(&l);
         str_free(&l);
         index += 1;
@@ -2124,9 +2122,9 @@ Setup(void)
     Buffering = false;
     db = set_Memb_init(Memb_compare);
     Memb members[] = {
-        Memb_init(true, false, str_init("true"),  Elem_init(BLN, (Poly) { .bln = true  })),
-        Memb_init(true, false, str_init("false"), Elem_init(BLN, (Poly) { .bln = false })),
-        Memb_init(true, false, str_init("null"),  Elem_null()),
+        Memb_init(true, false, Global("true"),  Elem_init(BLN, (Poly) { .bln = true  })),
+        Memb_init(true, false, Global("false"), Elem_init(BLN, (Poly) { .bln = false })),
+        Memb_init(true, false, Global("null"),  Elem_null()),
     };
     for(size_t i = 0; i < len(members); i++)
         set_Memb_insert(&db, members[i]);
@@ -2143,8 +2141,8 @@ Teardown(void)
 static int
 Run(int argc, char** argv, const char* code)
 {
-    Setup();
     Elem args = Command(argc, argv);
+    Setup();
     Program(code);
     str entry = str_init("Main");
     vec_str params = vec_str_init();
@@ -2183,7 +2181,7 @@ int
 main(int argc, char** argv)
 {
     if(argc < 2)
-        quit("./rr file.rr arg0 arg1 arg2");
+        quit("./rr file.rr arg0 arg1 arg2 etc.");
     char* buffer = Open(argv[1]);
     int ret = Run(argc, argv, buffer);
     free(buffer);

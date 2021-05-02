@@ -1,0 +1,53 @@
+Main()
+{
+    if(true)
+    {
+        if(false)
+        {
+            ret 1;
+        }
+        elif(true)
+        {
+            if(false)
+            {
+                ret 2;
+            }
+            elif(false)
+            {
+                ret 3;
+            }
+            elif(false)
+            {
+                ret 4;
+            }
+            elif(false)
+            {
+                ret 5;
+            }
+            else
+            {
+                if(false)
+                {
+                    ret 6;
+                }
+                elif(true)
+                {
+                    ret 0;
+                }
+                else
+                {
+                    ret 7;
+                }
+            }
+        }
+        else
+        {
+            ret 8;
+        }
+    }
+    else
+    {
+        ret 9;
+    }
+    ret 10;
+}

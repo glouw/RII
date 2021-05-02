@@ -1,0 +1,21 @@
+Main()
+{
+    stop := 5;
+    mut i := 10;
+    while(i > 0)
+    {
+        if(i == stop)
+        {
+            break;
+        }
+        i -= 1;
+    }
+    if(i == stop)
+    {
+        ret 0;
+    }
+    else
+    {
+        ret 1;
+    }
+}
