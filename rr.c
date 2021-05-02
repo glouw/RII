@@ -16,14 +16,20 @@ static bool BUFFERING;
 
 static int STACK;
 
+static int LINE;
+
+#define U64CHARS (32)
+
 #define DEBUG (false)
 
-#define quit(...) printf("error: "), printf(__VA_ARGS__), putchar('\n'), exit(1)
+#define quit(...) printf("error: line %d: ", LINE), printf(__VA_ARGS__), putchar('\n'), exit(1)
 
 #define TYPES X(I8) X(U8) X(I16) X(U16) X(I32) X(U32) X(I64) X(U64) X(F32) X(F64) X(STR) X(FUN) X(REF) X(OBJ) X(ARR) X(NUL) X(BLN) X(BRK) X(CNT)
 
-#define XSTR(s) STR(s)
 #define STR(s) #s
+#define XSTR(s) STR(s)
+                     //                 | ---- META ----- |
+#define FUN_META (3) // [ P0, P1... PN, LINE, LABEL, CODE ]
 
 typedef enum
 {
@@ -653,6 +659,20 @@ Cast(Elem e, Type type)
     }
 }
 
+static char*
+LineStr(void)
+{
+    char* b = calloc(U64CHARS, sizeof(*b));
+    sprintf(b, "%d", LINE);
+    return b;
+}
+
+static void
+LineSet(char* buffer)
+{
+    LINE = atoi(buffer);
+}
+
 static bool
 Equal(str* a, const char* b)
 {
@@ -916,7 +936,7 @@ Global(char* s)
 static str
 Local(char* s)
 {
-    char buffer[32] = { 0 }; // BIG ENOUGH FOR UINT64_T IF NEEDED.
+    char buffer[U64CHARS] = { 0 }; 
     sprintf(buffer, "%d", STACK);
     str o = str_init("");
     str_append(&o, buffer);
@@ -1016,6 +1036,7 @@ Fun(deq_char* q, str* l)
 {
     str label = str_copy(l);
     vec_str p = Params(q, true);
+    vec_str_push_back(&p, str_init(LineStr()));
     vec_str_push_back(&p, label);
     str code = ReadBlock(q);
     vec_str_push_back(&p, code);
@@ -1206,24 +1227,31 @@ set_Memb_zip(set_Memb* a, set_Memb* b, bool Op(Elem, Elem))
 }
 
 static char*
+Line(Elem e)
+{
+    vec_str* v = &e->poly.fun;
+    return v->value[v->size - (FUN_META - 0)].value;
+}
+
+static char*
 Label(Elem e)
 {
     vec_str* v = &e->poly.fun;
-    return v->value[v->size - 2].value;
+    return v->value[v->size - (FUN_META - 1)].value;
 }
 
 static char*
 Code(Elem e)
 {
     vec_str* v = &e->poly.fun;
-    return v->value[v->size - 1].value;
+    return v->value[v->size - (FUN_META - 2)].value;
 }
 
 static size_t
 Arguments(Elem e)
 {
     vec_str* v = &e->poly.fun;
-    return v->size - 2; // LABEL AND CODE ARE LAST TWO ELEMS.
+    return v->size - FUN_META;
 }
 
 static void
@@ -2240,6 +2268,7 @@ Command(int argc, char** argv)
 static void
 Setup(void)
 {
+    LINE = 1;
     BUFFER = str_init("");
     BUFFERING = false;
     db = set_Memb_init(Memb_compare);
@@ -2256,7 +2285,6 @@ static void
 Teardown(void)
 {
     str_free(&BUFFER);
-    BUFFERING = false;
     set_Memb_free(&db);
 }
 
