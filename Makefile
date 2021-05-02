@@ -1,5 +1,10 @@
+SANITIZE = 0
+
 CFLAGS = -Wall -Wextra -Wpedantic -g
-#CFLAGS+= -fsanitize=address -fsanitize=undefined
+
+ifeq (1, $(SANITIZE))
+CFLAGS += -fsanitize=address -fsanitize=undefined
+endif
 
 BIN = rr
 
@@ -22,6 +27,8 @@ test: all
 	./$(BIN) tests/break.rr
 	./$(BIN) tests/continue.rr
 	./$(BIN) tests/argv.rr testing cmd params
+	./$(BIN) tests/continue-bad.rr; test "$$?" -eq 1
+	./$(BIN) tests/break-bad.rr; test "$$?" -eq 1
 	./$(BIN) examples/fact.rr
 	@printf "\n>> ALLS WELL THAT ENDS WELL\n\n"
 

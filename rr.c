@@ -743,7 +743,7 @@ Memb_init(bool c, bool a, str s, Elem e)
 static Memb
 Memb_copy(Memb* m)
 {
-    Elem e = Elem_copy(&m->elem);
+    Elem e = m->alias ? m->elem : Elem_copy(&m->elem);
     return Memb_init(m->constant, m->alias, str_copy(&m->str), e);
 }
 
@@ -1977,6 +1977,7 @@ For(deq_char* q, Elem* ret)
     Memb* memb = &Exists(&e)->key;
     bool done = false;
     size_t index = 0;
+    size_t last = elem->poly.arr.size - 1;
     foreach(deq_Elem, &elem->poly.arr, it)
     {
         if(done)
@@ -2001,7 +2002,7 @@ For(deq_char* q, Elem* ret)
             (*ret)->type = NUL;
 
         // THE LAST ITERATION DOES NOT REQUIRE A REQUEUE.
-        if(index < elem->poly.arr.size - 1)
+        if(index < last)
             Requeue(q, &Buffer);
 
         str_free(&code);
