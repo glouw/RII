@@ -41,6 +41,7 @@ test: all
 	./$(BIN) $(TESTS)/argv.rr testing cmd params
 	$(call bad,tests/continue-bad.rr)
 	$(call bad,tests/break-bad.rr)
+	$(call bad,tests/args-bad.rr)
 	@echo ">> PASS"
 
 all:

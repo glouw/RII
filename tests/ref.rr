@@ -15,7 +15,7 @@ A(ref)
 
 Main()
 {
-    mut a := 1;
+    a := 1;
     A(a);
     ret a;
 }

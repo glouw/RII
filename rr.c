@@ -56,8 +56,6 @@ typedef struct
 {
     str str;
     Elem elem;
-    bool constant;
-    bool alias;
 }
 Memb;
 
@@ -72,7 +70,7 @@ typedef union
 {
     set_Memb obj;
     deq_Elem arr;
-    Memb* ref;
+    Elem* ref;
     str str;
     vec_str fun;
     int8_t i8;
@@ -752,21 +750,19 @@ static void
 Memb_free(Memb* m)
 {
     str_free(&m->str);
-    if(m->alias == false)
-        Elem_free(&m->elem);
+    Elem_free(&m->elem);
 }
 
 static Memb
-Memb_init(bool c, bool a, str s, Elem e)
+Memb_init(str s, Elem e)
 {
-    return (Memb) { s, e, c, a };
+    return (Memb) { s, e };
 }
 
 static Memb
 Memb_copy(Memb* m)
 {
-    Elem e = m->alias ? m->elem : Elem_copy(&m->elem);
-    return Memb_init(m->constant, m->alias, str_copy(&m->str), e);
+    return Memb_init(str_copy(&m->str), Elem_copy(&m->elem));
 }
 
 static int
@@ -988,10 +984,10 @@ Exists(str* s)
 }
 
 static void
-Insert(str* s, Elem e, bool c, bool a)
+Insert(str* s, Elem e)
 {
     str n = Local(s->value);
-    Memb m = Memb_init(c, a, n, e);
+    Memb m = Memb_init(n, e);
     set_Memb_insert(&db, m);
 }
 
@@ -1044,42 +1040,42 @@ Fun(deq_char* q, str* l)
     vec_str_push_back(&p, label);
     str code = ReadBlock(q);
     vec_str_push_back(&p, code);
-    Insert(&label, Elem_init(FUN, (Poly) { .fun = p }), true, false);
+    Insert(&label, Elem_init(FUN, (Poly) { .fun = p }));
 }
 
-static Memb*
-Deref(Memb* m)
+static Elem*
+Deref(Elem elem)
 {
-    Memb* other = m->elem->poly.ref;
-    while(other->elem->type == REF)
-        other = other->elem->poly.ref;
+    Elem* other = elem->poly.ref;
+    while((*other)->type == REF)
+        other = (*other)->poly.ref;
     return other;
 }
 
-static Memb*
+static Elem*
 Resolve(str* s)
 {
-    Memb* m = &Exists(s)->key;
-    return (m->elem->type == REF) ? Deref(m) : m;
+    Elem* elem = &Exists(s)->key.elem;
+    return ((*elem)->type == REF) ? Deref(*elem) : elem;
 }
 
 static Elem
-Call(Memb*, vec_str*);
+Call(Elem, vec_str*);
 
 static Elem
 Ident(deq_char* q)
 {
     str s = Read(q, IsIdent);
-    Memb* m = Resolve(&s);
+    Elem* m = Resolve(&s);
     Elem e;
     if(Next(q) == '(')
     {
         vec_str p = Params(q, false);
-        e = Call(m, &p);
+        e = Call(*m, &p);
         vec_str_free(&p);
     }
     else
-        e = Elem_copy(&m->elem);
+        e = Elem_copy(m);
     str_free(&s);
     return e;
 }
@@ -1184,7 +1180,7 @@ Object(deq_char* q)
             quit("Key value must be strings");
         Match(q, ':');
         Elem e = Expression(q);
-        set_Memb_insert(&m, Memb_init(true, false, str_copy(&s->poly.str), e));
+        set_Memb_insert(&m, Memb_init(str_copy(&s->poly.str), e));
         Elem_free(&s);
         if(Next(q) == ',')
         {
@@ -1781,8 +1777,8 @@ Write(Elem e, int tabs)
         break;
 
     case REF:
-        printf("|ref| %p ", (void*) e->poly.ref->elem);
-        Write(e->poly.ref->elem, 0);
+        printf("|ref| %p ", (void*) *e->poly.ref);
+        Write(*e->poly.ref, 0);
         break;
 
     case NUL:
@@ -1855,34 +1851,24 @@ Print(Elem e)
 }
 
 static void
-Define(deq_char* q, str* n, bool mut)
+Define(deq_char* q, str* n)
 {
     Match(q, ':');
     Match(q, '=');
     if(Find(n))
         quit("`%s` already defined", n->value);
     Elem e = Expression(q);
-    Insert(n, e, mut ? false : true, false);
-}
-
-static Memb*
-Mut(str* n)
-{
-    Exists(n);
-    Memb* m = Resolve(n);
-    if(m->constant)
-        quit("%s `%s` is constant", Types[m->elem->type], m->str.value);
-    return m;
+    Insert(n, e);
 }
 
 static void
 Update(deq_char* q, str* n)
 {
     Match(q, '=');
-    Memb* m = Mut(n);
+    Elem* m = Resolve(n);
     Elem e = Expression(q);
-    Elem_free(&m->elem);
-    m->elem = e;
+    Elem_free(m);
+    *m = e;
 }
 
 static void
@@ -1890,9 +1876,9 @@ AddEqual(deq_char* q, str* n)
 {
     Match(q, '+');
     Match(q, '=');
-    Memb* m = Mut(n);
+    Elem* m = Resolve(n);
     Elem e = Expression(q);
-    Add(m->elem, e);
+    Add(*m, e);
     Elem_free(&e);
 }
 
@@ -1901,9 +1887,9 @@ SubEqual(deq_char* q, str* n)
 {
     Match(q, '-');
     Match(q, '=');
-    Memb* m = Mut(n);
+    Elem* m = Resolve(n);
     Elem e = Expression(q);
-    Sub(m->elem, e);
+    Sub(*m, e);
     Elem_free(&e);
 }
 
@@ -1912,9 +1898,9 @@ MulEqual(deq_char* q, str* n)
 {
     Match(q, '*');
     Match(q, '=');
-    Memb* m = Mut(n);
+    Elem* m = Resolve(n);
     Elem e = Expression(q);
-    Mul(m->elem, e);
+    Mul(*m, e);
     Elem_free(&e);
 }
 
@@ -1923,22 +1909,10 @@ DivEqual(deq_char* q, str* n)
 {
     Match(q, '/');
     Match(q, '=');
-    Memb* m = Mut(n);
+    Elem* m = Resolve(n);
     Elem e = Expression(q);
-    Div(m->elem, e);
+    Div(*m, e);
     Elem_free(&e);
-}
-
-static bool
-Mutable(deq_char* q, str* s)
-{
-    bool mut = Equal(s, "mut");
-    if(mut)
-    {
-        str_free(s);
-        *s = Read(q, IsIdent);
-    }
-    return mut;
 }
 
 static Elem
@@ -2008,7 +1982,6 @@ For(deq_char* q, Elem* ret)
     str e = Read(q, IsIdent);
     Match(q, ')');
     Elem elem = Exists(&e)->key.elem;
-    Memb* memb = &Exists(&e)->key;
     bool done = false;
     size_t index = 0;
     size_t last = elem->poly.arr.size - 1;
@@ -2017,7 +1990,7 @@ For(deq_char* q, Elem* ret)
         if(done)
             break;
 
-        Insert(&k, *it.ref, memb->constant, true);
+        Insert(&k, Elem_init(REF, (Poly) { .ref = it.ref }));
 
         str_clear(&BUFFER);
         BUFFERING = true;
@@ -2141,11 +2114,10 @@ Block(deq_char* q)
             IfChain(q, &ret);
         else
         {
-            bool mut = Mutable(q, &s);
             char c = Next(q);
             switch(c)
             {
-            case ':': Define(q, &s, mut); break;
+            case ':': Define(q, &s); break;
             case '=': Update(q, &s); break;
             case '+': AddEqual(q, &s); break;
             case '-': SubEqual(q, &s); break;
@@ -2183,41 +2155,41 @@ Block(deq_char* q)
 }
 
 static int
-CountArgs(Memb* m, vec_str* args)
+CountArgs(Elem m, vec_str* args)
 {
-    if(m->elem->type != FUN)
+    if(m->type != FUN)
         quit("expected function");
-    int exp = Arguments(m->elem);
+    int exp = Arguments(m);
     int got = args->size;
     if(got != exp)
-        quit("`%s()` got %d args but expected %d", m->str.value, got, exp);
+        quit("function `%s` got %d args but expected %d", Label(m), got, exp);
     return got;
 }
 
 static deq_char
-PushArgs(Memb* m, vec_str* args, int count)
+PushArgs(Elem m, vec_str* args, int count)
 {
-    Memb* membs[count + 1]; // +1 FOR VLA SAFETY.
     int index = 0;
+    Elem* elems[count + 1]; // +1 FOR VLA SAFETY.
     foreach(vec_str, args, it)
-        membs[index++] = &Exists(it.ref)->key;
-    deq_char q = Queue(Code(m->elem));
+        elems[index++] = &Exists(it.ref)->key.elem;
+    deq_char q = Queue(Code(m));
     STACK += 1;
     for(int i = 0; i < count; i++)
     {
-        Elem e = Elem_init(REF, (Poly) { .ref = membs[i] });
-        Insert(&m->elem->poly.fun.value[i], e, true, false);
+        Elem e = Elem_init(REF, (Poly) { .ref = elems[i] });
+        Insert(&m->poly.fun.value[i], e);
     }
     return q;
 }
 
 static Elem
-Call(Memb* m, vec_str* args)
+Call(Elem m, vec_str* args)
 {
     int count = CountArgs(m, args);
     deq_char q = PushArgs(m, args, count);
     int old = LINE;
-    LineSet(Line(m->elem));
+    LineSet(Line(m));
     Elem ret = Block(&q);
     STACK -= 1;
     if(ret->type == BRK)
@@ -2241,8 +2213,7 @@ Program(const char* code)
             Fun(&q, &f);
         else
         {
-            bool mut = Mutable(&q, &f);
-            Define(&q, &f, mut);
+            Define(&q, &f);
             Match(&q, ';');
         }
         Spin(&q);
@@ -2280,9 +2251,9 @@ Setup(void)
     BUFFERING = false;
     db = set_Memb_init(Memb_compare);
     Memb members[] = {
-        Memb_init(true, false, Global("true"),  Elem_init(BLN, (Poly) { .bln = true  })),
-        Memb_init(true, false, Global("false"), Elem_init(BLN, (Poly) { .bln = false })),
-        Memb_init(true, false, Global("null"),  Elem_null()),
+        Memb_init(Global("true"),  Elem_init(BLN, (Poly) { .bln = true  })),
+        Memb_init(Global("false"), Elem_init(BLN, (Poly) { .bln = false })),
+        Memb_init(Global("null"),  Elem_null()),
     };
     for(size_t i = 0; i < len(members); i++)
         set_Memb_insert(&db, members[i]);
@@ -2304,9 +2275,9 @@ Run(int argc, char** argv, const char* code)
     str entry = str_init("Main");
     vec_str params = vec_str_init();
     str a = str_init("argv");
-    Insert(&a, args, true, false);
+    Insert(&a, args);
     set_Memb_node* node = Exists(&entry);
-    Elem e = Call(&node->key, &params);
+    Elem e = Call(node->key.elem, &params);
     Type t = I64;
     if(e->type != t)
         quit("entry `%s` expected return type `%s`, got `%s`", entry.value, Types[t], Types[e->type]);

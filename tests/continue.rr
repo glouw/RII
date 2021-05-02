@@ -1,6 +1,6 @@
 Main()
 {
-    mut i := 10;
+    i := 10;
     while(i > 0)
     {
         i -= 1;
@@ -8,7 +8,7 @@ Main()
         i += 1;
     }
     arr := [1, 2, 3];
-    mut j := 3;
+    j := 3;
     for(x : arr)
     {
         j -= 1;
