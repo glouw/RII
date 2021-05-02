@@ -3,6 +3,7 @@ name: BUILD / TEST / MEM CHECK / UB CHECK
 on:
   push:
     branches: [ master ]
+
   pull_request:
     branches: [ master ]
 
@@ -12,5 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: make
-      run: make test SANITIZE=1
+
+
+    - name: MAKE
+      run:
+        make SANITIZE=1
