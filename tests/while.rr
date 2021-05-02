@@ -1,0 +1,9 @@
+Main()
+{
+    mut i := 10;
+    while(i > 0)
+    {
+        i -= 1;
+    }
+    ret i;
+}
