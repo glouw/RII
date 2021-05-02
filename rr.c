@@ -10,11 +10,13 @@
 #define T char
 #include <deq.h>
 
-static str Buffer;
+static str BUFFER;
 
-static bool Buffering;
+static bool BUFFERING;
 
-static int Stack;
+static int STACK;
+
+#define DEBUG (false)
 
 #define quit(...) printf("error: "), printf(__VA_ARGS__), putchar('\n'), exit(1)
 
@@ -766,8 +768,8 @@ static void
 Pop(deq_char* q)
 {
     char c = *deq_char_front(q);
-    if(Buffering)
-        str_push_back(&Buffer, c);
+    if(BUFFERING)
+        str_push_back(&BUFFER, c);
     deq_char_pop_front(q);
 }
 
@@ -915,7 +917,7 @@ static str
 Local(char* s)
 {
     char buffer[32] = { 0 }; // BIG ENOUGH FOR UINT64_T IF NEEDED.
-    sprintf(buffer, "%d", Stack);
+    sprintf(buffer, "%d", STACK);
     str o = str_init("");
     str_append(&o, buffer);
     str_append(&o, ".");
@@ -1937,11 +1939,11 @@ While(deq_char* q, Elem* ret)
     bool done = false;
     while(!done)
     {
-        str_clear(&Buffer);
-        Buffering = true;
+        str_clear(&BUFFER);
+        BUFFERING = true;
         Elem e = Cond(q);
         str code = ReadBlock(q);
-        Buffering = false;
+        BUFFERING = false;
         if(e->poly.bln == true)
         {
             Brace(code.value, ret);
@@ -1955,7 +1957,7 @@ While(deq_char* q, Elem* ret)
             {
                 if(t == CNT)
                     (*ret)->type = NUL;
-                Requeue(q, &Buffer);
+                Requeue(q, &BUFFER);
             }
         }
         else
@@ -1985,10 +1987,10 @@ For(deq_char* q, Elem* ret)
 
         Insert(&k, *it.ref, memb->constant, true);
 
-        str_clear(&Buffer);
-        Buffering = true;
+        str_clear(&BUFFER);
+        BUFFERING = true;
         str code = ReadBlock(q);
-        Buffering = false;
+        BUFFERING = false;
         Brace(code.value, ret);
 
         // BREAK AND CONTINUE.
@@ -2003,7 +2005,7 @@ For(deq_char* q, Elem* ret)
 
         // THE LAST ITERATION DOES NOT REQUIRE A REQUEUE.
         if(index < last)
-            Requeue(q, &Buffer);
+            Requeue(q, &BUFFER);
 
         str_free(&code);
         str l = Local(k.value);
@@ -2134,11 +2136,13 @@ Block(deq_char* q)
     if(abort == false)
         Match(q, '}');
     set_Memb diff = set_Memb_difference(&db, &old);
+#if DEBUG
     foreach(set_Memb, &diff, it)
     {
         printf(">> FREE %s: ", it.ref->str.value);
         Print(it.ref->elem);
     }
+#endif
     foreach(set_Memb, &diff, it)
         Erase(&it.ref->str);
     set_Memb_free(&old);
@@ -2166,7 +2170,7 @@ PushArgs(Memb* m, vec_str* args, int count)
     foreach(vec_str, args, it)
         membs[index++] = &Exists(it.ref)->key;
     deq_char q = Queue(Code(m->elem));
-    Stack += 1;
+    STACK += 1;
     for(int i = 0; i < count; i++)
     {
         Elem e = Elem_init(REF, (Poly) { .ref = membs[i] });
@@ -2181,7 +2185,7 @@ Call(Memb* m, vec_str* args)
     int count = CountArgs(m, args);
     deq_char q = PushArgs(m, args, count);
     Elem ret = Block(&q);
-    Stack -= 1;
+    STACK -= 1;
     deq_char_free(&q);
     if(ret->type == BRK)
         quit("`break` expected `while` loop or `for` loop");
@@ -2236,8 +2240,8 @@ Command(int argc, char** argv)
 static void
 Setup(void)
 {
-    Buffer = str_init("");
-    Buffering = false;
+    BUFFER = str_init("");
+    BUFFERING = false;
     db = set_Memb_init(Memb_compare);
     Memb members[] = {
         Memb_init(true, false, Global("true"),  Elem_init(BLN, (Poly) { .bln = true  })),
@@ -2251,8 +2255,8 @@ Setup(void)
 static void
 Teardown(void)
 {
-    str_free(&Buffer);
-    Buffering = false;
+    str_free(&BUFFER);
+    BUFFERING = false;
     set_Memb_free(&db);
 }
 
@@ -2298,6 +2302,7 @@ Open(const char* path)
 int
 main(int argc, char** argv)
 {
+    (void) Print;
     if(argc < 2)
         quit("./rr file.rr arg0 arg1 arg2 etc.");
     char* buffer = Open(argv[1]);

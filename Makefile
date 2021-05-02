@@ -14,9 +14,6 @@ SRC = rr.c
 
 INC = ctl/ctl
 
-all:
-	$(CC) $(SRC) $(CFLAGS) -I $(INC) -o $(BIN)
-
 test: all
 	./$(BIN) tests/for.rr
 	./$(BIN) tests/while.rr
@@ -30,7 +27,10 @@ test: all
 	./$(BIN) tests/continue-bad.rr; test "$$?" -eq 1
 	./$(BIN) tests/break-bad.rr; test "$$?" -eq 1
 	./$(BIN) examples/fact.rr
-	@printf "\n>> ALLS WELL THAT ENDS WELL\n\n"
+	@echo ">> PASS"
+
+all:
+	$(CC) $(SRC) $(CFLAGS) -I $(INC) -o $(BIN)
 
 clean:
 	rm -f $(BIN)

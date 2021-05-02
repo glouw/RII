@@ -24,4 +24,4 @@ jobs:
 
     - name: MAKE AND TEST RR
       run:
-        make test SANITIZE=1
+        make SANITIZE=1
