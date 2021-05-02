@@ -1939,6 +1939,22 @@ Brace(const char* code, Elem* ret)
     *ret = e;
 }
 
+static bool
+Catch(Elem* ret)
+{
+    if((*ret)->type == BRK)
+    {
+        (*ret)->type = NUL;
+        return true;
+    }
+    else
+    {
+        if((*ret)->type == CNT)
+            (*ret)->type = NUL;
+        return false;
+    }
+}
+
 static void
 While(deq_char* q, Elem* ret)
 {
@@ -1953,18 +1969,9 @@ While(deq_char* q, Elem* ret)
         if(e->poly.bln == true)
         {
             Brace(code.value, ret);
-            Type t = (*ret)->type;
-            if(t == BRK)
-            {
-                (*ret)->type = NUL;
-                done = true;
-            }
-            else
-            {
-                if(t == CNT)
-                    (*ret)->type = NUL;
+            done = Catch(ret);
+            if(!done)
                 Requeue(q, &BUFFER);
-            }
         }
         else
             done = true;
@@ -1989,29 +1996,15 @@ For(deq_char* q, Elem* ret)
     {
         if(done)
             break;
-
         Insert(&k, Elem_init(REF, (Poly) { .ref = it.ref }));
-
         str_clear(&BUFFER);
         BUFFERING = true;
         str code = ReadBlock(q);
         BUFFERING = false;
         Brace(code.value, ret);
-
-        // BREAK AND CONTINUE.
-        if((*ret)->type == BRK)
-        {
-            (*ret)->type = NUL;
-            done = true;
-        }
-        else
-        if((*ret)->type == CNT)
-            (*ret)->type = NUL;
-
-        // THE LAST ITERATION DOES NOT REQUIRE A REQUEUE.
-        if(index < last)
+        done = Catch(ret);
+        if(index != last)
             Requeue(q, &BUFFER);
-
         str_free(&code);
         str l = Local(k.value);
         Erase(&l);
