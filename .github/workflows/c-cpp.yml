@@ -16,6 +16,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: 'true'
+        ssh-key: ${{ secrets.SUBMODULE_SSH_KEY }}
 
     - name: MAKE
       run:
