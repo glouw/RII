@@ -20,7 +20,7 @@ jobs:
 
     - name: MAKE AND TEST CTL
       run:
-        cd ctl; make LONG=1 SANITIZE=1
+        cd ctl; make O3=1 LONG=1 SANITIZE=1
 
     - name: MAKE AND TEST RR
       run:
