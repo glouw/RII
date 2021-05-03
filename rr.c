@@ -970,8 +970,7 @@ Find(str* s)
 static void
 Erase(str* s)
 {
-    set_Memb_node* node = set_Memb_find(&db, (Memb) { .str = *s });
-    set_Memb_erase_node(&db, node);
+    set_Memb_erase_node(&db, set_Memb_find(&db, (Memb) { .str = *s }));
 }
 
 static set_Memb_node*
