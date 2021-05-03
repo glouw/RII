@@ -2407,7 +2407,7 @@ Run(int argc, char** argv, const char* code)
     return ret;
 }
 
-char*
+static char*
 Open(const char* path)
 {
     FILE* file = fopen(path, "rb");
