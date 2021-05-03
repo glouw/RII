@@ -15,6 +15,7 @@ SRC = rr.c
 INC = ctl/ctl
 
 TESTS = tests
+
 EXAMP = examples
 
 define bad
@@ -42,6 +43,7 @@ test: all
 	./$(BIN) $(TESTS)/2darr.rr
 	./$(BIN) $(TESTS)/expr.rr
 	./$(BIN) $(TESTS)/obj.rr
+	./$(BIN) $(TESTS)/obj-ref.rr
 	./$(BIN) $(TESTS)/obj-no-find.rr
 	./$(BIN) $(TESTS)/obj-arr-mix.rr
 	./$(BIN) $(TESTS)/argv.rr testing cmd params
