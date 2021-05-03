@@ -985,9 +985,7 @@ Exists(str* s)
 static void
 Insert(str* s, Elem e)
 {
-    str n = Local(s->value);
-    Memb m = Memb_init(n, e);
-    set_Memb_insert(&db, m);
+    set_Memb_insert(&db, Memb_init(Local(s->value), e));
 }
 
 static str
