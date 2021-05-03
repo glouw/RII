@@ -1085,10 +1085,7 @@ LookupObj(Elem* deref, Elem e)
         quit("string type expected for {} (object) lookup");
     set_Memb* obj = &(*deref)->poly.obj;
     set_Memb_node* node = set_Memb_find(obj , (Memb) { .str = e->poly.str });
-    if(node)
-        return &node->key.elem;
-    else
-        return &NOTHING;
+    return node ? &node->key.elem : &NOTHING;
 }
 
 static Elem*
