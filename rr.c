@@ -1676,6 +1676,83 @@ Term(deq_char* q)
     return a;
 }
 
+static void
+AddWith(deq_char* q, Elem a)
+{
+    Match(q, '+');
+    Elem b = Term(q);
+    Add(a, b);
+    Elem_free(&b);
+}
+
+static void
+SubWith(deq_char* q, Elem a)
+{
+    Match(q, '-');
+    Elem b = Term(q);
+    Sub(a, b);
+    Elem_free(&b);
+}
+
+static void
+NotEqualWith(deq_char* q, Elem a)
+{
+    Match(q, '!');
+    Match(q, '=');
+    Elem b = Expression(q);
+    BoolET(a, b);
+    BoolNot(a);
+    Elem_free(&b);
+}
+
+static void
+EqualWith(deq_char* q, Elem a)
+{
+    Match(q, '=');
+    Match(q, '=');
+    Elem b = Expression(q);
+    BoolET(a, b);
+    Elem_free(&b);
+}
+
+static void
+GreaterWIth(deq_char* q, Elem a)
+{
+    Match(q, '>');
+    if(Next(q) == '=')
+    {
+        Match(q, '=');
+        Elem b = Expression(q);
+        BoolGTE(a, b);
+        Elem_free(&b);
+    }
+    else
+    {
+        Elem b = Expression(q);
+        BoolGT(a, b);
+        Elem_free(&b);
+    }
+}
+
+static void
+LessWith(deq_char* q, Elem a)
+{
+    Match(q, '<');
+    if(Next(q) == '=')
+    {
+        Match(q, '=');
+        Elem b = Expression(q);
+        BoolLTE(a, b);
+        Elem_free(&b);
+    }
+    else
+    {
+        Elem b = Expression(q);
+        BoolLT(a, b);
+        Elem_free(&b);
+    }
+}
+
 static Elem
 Expression(deq_char* q)
 {
@@ -1686,80 +1763,13 @@ Expression(deq_char* q)
         char n = Next(q);
         switch(n)
         {
-        case '+':
-        {
-            Match(q, '+');
-            Elem b = Term(q);
-            Add(a, b);
-            Elem_free(&b);
-            break;
-        }
-        case '-':
-        {
-            Match(q, '-');
-            Elem b = Term(q);
-            Sub(a, b);
-            Elem_free(&b);
-            break;
-        }
-        case '!':
-        {
-            Match(q, '!');
-            Match(q, '=');
-            Elem b = Expression(q);
-            BoolET(a, b);
-            BoolNot(a);
-            Elem_free(&b);
-            break;
-        }
-        case '=':
-        {
-            Match(q, '=');
-            Match(q, '=');
-            Elem b = Expression(q);
-            BoolET(a, b);
-            Elem_free(&b);
-            break;
-        }
-        case '>':
-        {
-            Match(q, '>');
-            if(Next(q) == '=')
-            {
-                Match(q, '=');
-                Elem b = Expression(q);
-                BoolGTE(a, b);
-                Elem_free(&b);
-            }
-            else
-            {
-                Elem b = Expression(q);
-                BoolGT(a, b);
-                Elem_free(&b);
-            }
-            break;
-        }
-        case '<':
-        {
-            Match(q, '<');
-            if(Next(q) == '=')
-            {
-                Match(q, '=');
-                Elem b = Expression(q);
-                BoolLTE(a, b);
-                Elem_free(&b);
-            }
-            else
-            {
-                Elem b = Expression(q);
-                BoolLT(a, b);
-                Elem_free(&b);
-            }
-            break;
-        }
-        default:
-            done = true;
-            break;
+        case '+': AddWith(q, a); break;
+        case '-': SubWith(q, a); break;
+        case '!': NotEqualWith(q, a); break;
+        case '=': EqualWith(q, a); break;
+        case '>': GreaterWIth(q, a); break;
+        case '<': LessWith(q, a); break;
+        default: done = true; break;
         }
     }
     return a;
